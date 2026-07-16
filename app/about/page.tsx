@@ -12,7 +12,7 @@ export default function AboutPage() {
       <h1 className="max-w-5xl text-balance font-serif text-6xl font-black leading-[1.15] md:text-8xl">文學不是遠方，<br />而是此刻的生活。</h1>
       <div className="mt-14 grid gap-10 md:grid-cols-[1.4fr_0.8fr] md:items-end">
         <div className="relative aspect-[16/10] overflow-hidden"><Image src="/images/campus-corridor.png" alt="午後安靜的校園走廊" fill className="object-cover" sizes="(min-width: 768px) 65vw, 100vw" /></div>
-        <p className="border-t border-foreground pt-5 text-pretty text-lg leading-loose text-muted-foreground">文薈誕生於一群東山的傻屌學生。我們希望在課業之外，給東山學生一個可以慢慢說話、也願意仔細聆聽的地方。</p>
+        <p className="border-t border-foreground pt-5 text-pretty text-lg leading-loose text-muted-foreground">文薈誕生於東山一群對文學有熱忱的學生。我們希望在課業之外，給東山學生一個可以慢慢說話、也願意仔細聆聽的地方。</p>
       </div>
     </section>
     <section className="bg-foreground py-20 text-background md:py-28">

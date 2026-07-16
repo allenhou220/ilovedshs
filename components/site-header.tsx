@@ -27,7 +27,7 @@ export function SiteHeader() {
 
           <span className="flex flex-col leading-none">
             <span className="font-serif text-xl font-bold tracking-[0.2em]">東山文薈</span>
-            <span className="mt-1 text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Campus Literary Review</span>
+            <span className="mt-1 text-[10px] uppercase tracking-[0.24em] text-muted-foreground">DSHS WENHUI</span>
           </span>
         </Link>
         

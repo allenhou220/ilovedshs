@@ -30,7 +30,7 @@
 
 :root {
   color-scheme: light;
-  --background: oklch(0.958 0.012 82);
+  --background: oklch(100% 0.00011 271.152 / 0.971);
   --foreground: oklch(0.19 0.012 55);
   --card: oklch(0.985 0.006 82);
   --card-foreground: oklch(0.19 0.012 55);

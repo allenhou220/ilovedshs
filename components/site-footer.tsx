@@ -17,7 +17,7 @@ export function SiteFooter() {
         </div>
         <div className="flex flex-col gap-3 text-sm">
           <p className="text-xs uppercase tracking-[0.22em] text-background/50">Contact</p>
-          <a href="mailto:wenhui@example.edu.tw" className="hover:underline">29395826教務處電話 打了沒用</a>
+          <a href="mailto:wenhui@example.edu.tw" className="hover:underline">29395826教務處電話</a>
           <p className="text-background/60">東山文薈・每學期出刊</p>
         </div>
       </div>
