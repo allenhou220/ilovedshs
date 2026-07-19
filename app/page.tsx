@@ -28,11 +28,11 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="bg-foreground py-20 text-background md:py-28">
+      <section className="bg-secondary py-20 text-secondary-foreground md:py-28">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
-          <div className="mb-14 flex items-end justify-between border-b border-background/25 pb-5">
-            <div><p className="mb-2 text-xs tracking-[0.22em] text-background/55">EDITOR&apos;S PICK</p><h2 className="font-serif text-4xl font-bold md:text-5xl">編輯精選</h2></div>
-            <span className="font-serif text-5xl text-background/20">01</span>
+          <div className="mb-14 flex items-end justify-between border-b border-secondary-foreground/25 pb-5">
+            <div><p className="mb-2 text-xs tracking-[0.22em] text-secondary-foreground/55">EDITOR&apos;S PICK</p><h2 className="font-serif text-4xl font-bold md:text-5xl">編輯精選</h2></div>
+            <span className="font-serif text-5xl text-secondary-foreground/20">01</span>
           </div>
           <WorkCard work={works[0]} featured />
         </div>
