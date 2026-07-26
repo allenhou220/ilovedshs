@@ -1,10 +1,29 @@
+import { sql } from "@vercel/postgres"
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Asterisk } from 'lucide-react'
 import { WorkCard } from '@/components/work-card'
-import { works } from '@/lib/works'
 
-export default function Page() {
+export const dynamic = 'force-dynamic'
+
+export default async function Page() {
+  let works: any[] = []
+
+  try {
+    const { rows } = await sql`SELECT * FROM works ORDER BY id DESC`
+    works = rows
+  } catch (error) {
+    console.error("讀取資料庫失敗:", error)
+  }
+
+  if (works.length === 0) {
+    return (
+      <main className="mx-auto max-w-3xl px-5 py-32 text-center">
+        <p className="text-muted-foreground">目前還沒有發布任何文章，請先到後台新增。</p>
+      </main>
+    )
+  }
+
   return (
     <main>
       <section className="mx-auto max-w-7xl px-5 pb-20 pt-12 md:px-8 md:pb-28 md:pt-20">
@@ -16,7 +35,7 @@ export default function Page() {
             <p className="flex items-center gap-3 text-sm tracking-[0.25em] text-primary"><Asterisk className="size-4" /> 本期專題</p>
             <h1 className="text-balance font-serif text-6xl font-black leading-[1.08] tracking-tight md:text-8xl">在鐘聲<br />停下以前</h1>
             <p className="max-w-md text-pretty text-base leading-loose text-muted-foreground">我們以文字留住放學後的光、雨季裡的窗，以及那些還來不及說出口的青春。六位學生作者，寫下校園生活的不同切面。</p>
-            <Link href={`/works/${works[0].slug}`} className="inline-flex w-fit items-center gap-3 border-b border-primary pb-2 text-sm font-medium tracking-wider text-primary">閱讀本期首選 <ArrowRight className="size-4" /></Link>
+            <Link href={`/works/${works[0].id}`} className="inline-flex w-fit items-center gap-3 border-b border-primary pb-2 text-sm font-medium tracking-wider text-primary">閱讀本期首選 <ArrowRight className="size-4" /></Link>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden bg-muted md:aspect-[5/4]">
             <Image src="/images/hero-library.png" alt="雨後圖書館窗邊的書桌與筆記本" fill priority className="object-cover" sizes="(min-width: 768px) 58vw, 100vw" />
@@ -44,7 +63,7 @@ export default function Page() {
           <Link href="/works" className="hidden items-center gap-2 text-sm tracking-wider md:flex">查看全部 <ArrowRight className="size-4" /></Link>
         </div>
         <div className="grid gap-x-8 gap-y-14 md:grid-cols-3">
-          {works.slice(1, 4).map((work) => <WorkCard key={work.slug} work={work} />)}
+          {works.slice(1, 4).map((work) => <WorkCard key={work.id} work={work} />)}
         </div>
       </section>
 
