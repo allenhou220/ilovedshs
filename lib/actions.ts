@@ -14,7 +14,7 @@ async function requireSession() {
   }
 }
 
-// 新增文章
+// 新增文章 (🚀 修正版：自動將新文章排在最前面)
 export async function createWorkAction(formData: FormData) {
   await requireSession();
 
@@ -36,9 +36,13 @@ export async function createWorkAction(formData: FormData) {
     imageUrl = blob.url;
   }
 
+  // 找出目前最小的排序值，減 1 讓新文章永遠排在最前面
+  const { rows } = await sql`SELECT MIN(sort_order) as min_order FROM works`;
+  const minOrder = (rows[0]?.min_order ?? 1) - 1;
+
   await sql`
-    INSERT INTO works (title, author, category, content, image_url)
-    VALUES (${title}, ${author}, ${category}, ${content}, ${imageUrl})
+    INSERT INTO works (title, author, category, content, image_url, sort_order)
+    VALUES (${title}, ${author}, ${category}, ${content}, ${imageUrl}, ${minOrder})
   `;
 
   revalidatePath("/admin");
@@ -108,22 +112,30 @@ export async function toggleFeaturedAction(id: number, nextFeatured: boolean) {
   revalidatePath("/");
 }
 
-// 上下移動文章排序（跟相鄰的那篇互換 sort_order）
+// 上下移動文章排序（🚀 終極修正版：強制重新編號消滅 NULL）
 export async function moveWorkAction(id: number, direction: "up" | "down") {
   await requireSession();
 
-  const { rows } = await sql`SELECT id, sort_order FROM works ORDER BY sort_order ASC`;
+  const { rows } = await sql`
+    SELECT id, sort_order 
+    FROM works 
+    ORDER BY COALESCE(sort_order, id) ASC
+  `;
+  
   const index = rows.findIndex((r) => r.id === id);
   if (index === -1) return;
 
   const swapIndex = direction === "up" ? index - 1 : index + 1;
   if (swapIndex < 0 || swapIndex >= rows.length) return;
 
-  const current = rows[index];
-  const target = rows[swapIndex];
+  const newOrder = [...rows];
+  const temp = newOrder[index];
+  newOrder[index] = newOrder[swapIndex];
+  newOrder[swapIndex] = temp;
 
-  await sql`UPDATE works SET sort_order = ${target.sort_order} WHERE id = ${current.id}`;
-  await sql`UPDATE works SET sort_order = ${current.sort_order} WHERE id = ${target.id}`;
+  await Promise.all(newOrder.map((work, i) => {
+    return sql`UPDATE works SET sort_order = ${i + 1} WHERE id = ${work.id}`;
+  }));
 
   revalidatePath("/admin");
   revalidatePath("/works");
@@ -205,4 +217,22 @@ export async function changePasswordAction(formData: FormData) {
   await sql`UPDATE users SET password = ${newHashed} WHERE id = ${user.id}`;
 
   return { success: true };
+}
+// 💡 專為編輯器內文圖片設計的上傳函數
+export async function uploadEditorImageAction(formData: FormData) {
+  await requireSession();
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "未選擇圖片" };
+  }
+
+  // 自動加上時間戳記與前綴，存入 Blob 的 editor 標籤資料夾中
+  const uniqueFilename = `editor/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+  const blob = await put(uniqueFilename, file, {
+    access: "public",
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+  });
+
+  return { url: blob.url };
 }

@@ -6,6 +6,15 @@ import { WorkCard } from '@/components/work-card'
 
 export const dynamic = 'force-dynamic'
 
+// 💡 淨化工具：過濾掉內文的 HTML 標籤與圖片碼，只保留乾淨的純文字摘要
+function stripHtml(html: string = '') {
+  return html
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export default async function Page() {
   let works: any[] = []
 
@@ -25,9 +34,20 @@ export default async function Page() {
   }
 
   // 精選文章：優先抓後台標記「featured」的那篇，沒有的話 fallback 用第一篇
-  const featuredWork = works.find((w) => w.featured) || works[0]
+  const rawFeaturedWork = works.find((w) => w.featured) || works[0]
   // 最新作品區塊：排除掉精選那篇，取前三篇
-  const latestWorks = works.filter((w) => w.id !== featuredWork.id).slice(0, 3)
+  const rawLatestWorks = works.filter((w) => w.id !== rawFeaturedWork.id).slice(0, 3)
+
+  // 💡 將精選與最新文章的 content 通通淨化成純文字
+  const featuredWork = {
+    ...rawFeaturedWork,
+    content: stripHtml(rawFeaturedWork.content || '')
+  }
+
+  const latestWorks = rawLatestWorks.map((work) => ({
+    ...work,
+    content: stripHtml(work.content || '')
+  }))
 
   return (
     <main>
@@ -72,12 +92,13 @@ export default async function Page() {
         </div>
       </section>
 
+      {/* 💡 關鍵新增與修改：加入「採訪 Interview」分類，並調整網格為 4 欄 (lg:grid-cols-4) */}
       <section className="border-y border-border bg-card">
-        <div className="mx-auto grid max-w-7xl md:grid-cols-3">
-          {['散文 Essay', '新詩 Poetry', '小說 Fiction'].map((item, index) => (
-            <Link key={item} href="/works" className="group flex min-h-48 flex-col justify-between border-b border-border p-8 transition-colors hover:bg-primary hover:text-primary-foreground md:border-b-0 md:border-r md:last:border-r-0">
+        <div className="mx-auto grid max-w-7xl sm:grid-cols-2 lg:grid-cols-4">
+          {['散文 Essay', '新詩 Poetry', '小說 Fiction', '採訪 Interview'].map((item, index) => (
+            <Link key={item} href="/works" className="group flex min-h-48 flex-col justify-between border-b border-border p-8 transition-colors hover:bg-primary hover:text-primary-foreground sm:border-r lg:last:border-r-0">
               <span className="text-xs tracking-[0.2em] opacity-60">0{index + 1} / CATEGORY</span>
-              <span className="flex items-end justify-between font-serif text-3xl font-bold">{item}<ArrowRight className="size-5 transition-transform group-hover:translate-x-2" /></span>
+              <span className="flex items-end justify-between font-serif text-2xl font-bold lg:text-3xl">{item}<ArrowRight className="size-5 transition-transform group-hover:translate-x-2" /></span>
             </Link>
           ))}
         </div>

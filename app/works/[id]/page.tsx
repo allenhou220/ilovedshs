@@ -4,9 +4,10 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;  // ← Next.js 16 的 params 是 Promise，要 await
+  const { id } = await params;
 
   let work = null;
 
@@ -62,10 +63,14 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           </div>
         )}
 
+        {/* 💡 關鍵修改區塊：將 className 稍微調整，並使用 dangerouslySetInnerHTML */}
+        {/* 我們拿掉 whitespace-pre-wrap，改為 prose 相關樣式 (如果有的話)，或者讓 HTML 原生標籤發揮作用 */}
         <div className={`mx-auto px-5 py-16 md:py-24 ${isPoetry ? 'max-w-2xl text-center' : 'max-w-3xl'}`}>
-          <div className="font-serif text-lg leading-[2.15] md:text-xl text-foreground whitespace-pre-wrap text-justify">
-            {work.content}
-          </div>
+          <div 
+            className="font-serif text-lg leading-[2.15] md:text-xl text-foreground text-justify"
+            // 💡 告訴 React 把資料庫裡的 HTML 標籤真正渲染出來
+            dangerouslySetInnerHTML={{ __html: work.content || '' }}
+          />
 
           <aside className="mt-20 border-y border-border py-8 text-center md:text-left">
             <p className="mb-3 text-xs tracking-[0.2em] text-primary">ABOUT THE AUTHOR</p>

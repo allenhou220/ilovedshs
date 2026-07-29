@@ -5,26 +5,49 @@ import { WorkCard } from '@/components/work-card'
 
 const PAGE_SIZE = 9
 
+// 💡 核心過濾工具：把內文中的 HTML 標籤（如 <p>, <img>, <strong>）與 Base64 碼通通拿掉，只保留純文字
+function stripHtml(html: string = '') {
+  return html
+    .replace(/<[^>]*>?/gm, '') // 移除所有 HTML 標籤
+    .replace(/&nbsp;/g, ' ')   // 轉換空格
+    .replace(/\s+/g, ' ')      // 多餘換行與空格壓縮
+    .trim()
+}
+
 // 接收從 Server Component 傳來的資料庫文章
 export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
-  // 動態從資料庫文章中抓出所有不重複的分類，並加上「全部」
-  const uniqueCategories = Array.from(new Set(dbWorks.map(work => work.category || '散文')))
+  
+  // 強制依照 sort_order 排序
+  const sortedWorks = [...dbWorks].sort((a, b) => {
+    const orderA = a.sort_order ?? 999999;
+    const orderB = b.sort_order ?? 999999;
+
+    if (orderA !== orderB) {
+      return orderA - orderB; // ASC (由小到大)
+    }
+    return (b.id || 0) - (a.id || 0);
+  });
+
+  // 抓取不重複分類
+  const uniqueCategories = Array.from(new Set(sortedWorks.map(work => work.category || '散文')))
   const categories = ['全部', ...uniqueCategories]
 
   const [activeCategory, setActiveCategory] = useState('全部')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
-  const filteredWorks = dbWorks.filter((work) => {
+  // 進行文章過濾（搜尋時也只搜尋「純文字」內容，避免搜尋到 html 標籤或圖片網址）
+  const filteredWorks = sortedWorks.filter((work) => {
     const workCategory = work.category || '散文'
     const matchCategory = activeCategory === '全部' || workCategory === activeCategory
     
+    const cleanContent = stripHtml(work.content || '')
     const lowercaseQuery = searchQuery.toLowerCase()
+
     const matchSearch = 
       work.title?.toLowerCase().includes(lowercaseQuery) || 
       work.author?.toLowerCase().includes(lowercaseQuery) || 
-      // 改用資料庫的 content 欄位來進行內文搜尋
-      work.content?.toLowerCase().includes(lowercaseQuery) || 
+      cleanContent.toLowerCase().includes(lowercaseQuery) || 
       false
 
     return matchCategory && matchSearch
@@ -88,8 +111,14 @@ export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
       
       <section className="grid gap-x-8 gap-y-16 py-14 md:grid-cols-2 lg:grid-cols-3">
         {paginatedWorks.map((work, index) => (
-          // 使用資料庫的 id 當 key，如果沒有 id 就暫時用 index
-          <WorkCard key={work.id || index} work={work} />
+          /* 💡 關鍵傳參修正：傳給 WorkCard 前，先將 content 淨化成乾淨純文字 */
+          <WorkCard 
+            key={work.id || index} 
+            work={{
+              ...work,
+              content: stripHtml(work.content || '')
+            }} 
+          />
         ))}
         {filteredWorks.length === 0 && (
           <p className="col-span-full py-12 text-center text-muted-foreground font-serif">
