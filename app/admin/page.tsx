@@ -13,6 +13,8 @@ export default async function AdminPage() {
     redirect("/login");
   }
 
+  const isAdmin = (session.user as any)?.role === "admin";
+
   const { rows: works } = await sql`SELECT id, title, author, category, image_url, featured, sort_order FROM works ORDER BY sort_order ASC`;
 
   return (
@@ -40,6 +42,36 @@ export default async function AdminPage() {
           </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
+            <Link
+              href="/admin/account"
+              style={{
+                padding: "8px 16px",
+                background: "transparent",
+                border: "1px solid #333",
+                color: "#fff",
+                borderRadius: "4px",
+                fontSize: "14px",
+                textDecoration: "none",
+              }}
+            >
+              我的帳號
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin/users"
+                style={{
+                  padding: "8px 16px",
+                  background: "transparent",
+                  border: "1px solid #333",
+                  color: "#fff",
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  textDecoration: "none",
+                }}
+              >
+                帳號管理
+              </Link>
+            )}
             <Link
               href="/admin/new"
               style={{

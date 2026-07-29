@@ -14,6 +14,7 @@ async function requireSession() {
   }
 }
 
+// 新增文章
 export async function createWorkAction(formData: FormData) {
   await requireSession();
 
@@ -46,6 +47,7 @@ export async function createWorkAction(formData: FormData) {
   redirect("/admin");
 }
 
+// 更新文章（圖片沒有重新選擇時，保留原本的 image_url）
 export async function updateWorkAction(id: number, formData: FormData) {
   await requireSession();
 
@@ -81,6 +83,7 @@ export async function updateWorkAction(id: number, formData: FormData) {
   redirect("/admin");
 }
 
+// 刪除文章
 export async function deleteWorkAction(id: number) {
   await requireSession();
 
@@ -90,6 +93,7 @@ export async function deleteWorkAction(id: number) {
   revalidatePath("/works");
   revalidatePath("/");
 }
+
 // 切換精選狀態（設成精選時，會自動把其他文章的精選取消，確保首頁只有一篇精選）
 export async function toggleFeaturedAction(id: number, nextFeatured: boolean) {
   await requireSession();
@@ -124,4 +128,81 @@ export async function moveWorkAction(id: number, direction: "up" | "down") {
   revalidatePath("/admin");
   revalidatePath("/works");
   revalidatePath("/");
+}
+
+// ===== 帳號管理（僅限總管理員 role='admin'） =====
+
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any)?.role !== "admin") {
+    throw new Error("權限不足，僅限總管理員操作");
+  }
+  return session;
+}
+
+// 新增帳號（老師/學生），密碼會用 bcrypt 加密後存入資料庫
+export async function createUserAction(formData: FormData) {
+  await requireAdmin();
+
+  const bcrypt = (await import("bcryptjs")).default;
+
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+  const role = String(formData.get("role") || "editor");
+
+  if (!email || !password) return;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await sql`
+    INSERT INTO users (email, password, role)
+    VALUES (${email}, ${hashedPassword}, ${role})
+  `;
+
+  revalidatePath("/admin/users");
+}
+
+// 刪除帳號
+export async function deleteUserAction(id: number) {
+  const session = await requireAdmin();
+
+  // 防止總管理員不小心刪掉自己導致無法登入
+  if (session.user?.email) {
+    const { rows } = await sql`SELECT email FROM users WHERE id = ${id}`;
+    if (rows[0]?.email === session.user.email) {
+      throw new Error("不能刪除自己的帳號");
+    }
+  }
+
+  await sql`DELETE FROM users WHERE id = ${id}`;
+
+  revalidatePath("/admin/users");
+}
+
+// 使用者自己修改密碼（需先驗證舊密碼正確）
+export async function changePasswordAction(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) throw new Error("未登入");
+
+  const bcrypt = (await import("bcryptjs")).default;
+
+  const currentPassword = String(formData.get("currentPassword") || "");
+  const newPassword = String(formData.get("newPassword") || "");
+  if (!currentPassword || !newPassword) return { error: "請填寫完整" };
+  if (newPassword.length < 6) return { error: "新密碼至少要 6 個字元" };
+
+  const { rows } = await sql`SELECT * FROM users WHERE email = ${session.user.email}`;
+  const user = rows[0];
+  if (!user) return { error: "找不到帳號" };
+
+  const stored = String(user.password || "");
+  const isHashed = stored.startsWith("$2a$") || stored.startsWith("$2b$");
+  const matches = isHashed ? await bcrypt.compare(currentPassword, stored) : currentPassword === stored;
+
+  if (!matches) return { error: "目前密碼不正確" };
+
+  const newHashed = await bcrypt.hash(newPassword, 10);
+  await sql`UPDATE users SET password = ${newHashed} WHERE id = ${user.id}`;
+
+  return { success: true };
 }
