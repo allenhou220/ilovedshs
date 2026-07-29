@@ -9,7 +9,7 @@ export default async function WorkPage() {
   
   try {
     // 從資料庫撈出所有文章
-    const { rows } = await sql`SELECT * FROM works`;
+    const { rows } = await sql`SELECT * FROM works ORDER BY sort_order ASC`;
     works = rows;
   } catch (error) {
     console.error("讀取資料庫失敗:", error);
