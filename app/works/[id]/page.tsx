@@ -29,6 +29,21 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <main>
+      {/* 💡 終極解法：同時作用於容器與所有子元素，並強制開啟「齊平現代數字 (lining-nums)」 */}
+      <style>{`
+        .custom-article-content,
+        .custom-article-content * {
+          font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif) !important;
+          font-variant-numeric: lining-nums tabular-nums !important;
+          font-feature-settings: "lnum" 1, "tnum" 1 !important;
+        }
+        .custom-article-content h1,
+        .custom-article-content h2,
+        .custom-article-content h3 {
+          font-family: var(--font-serif, Georgia, serif) !important;
+        }
+      `}</style>
+
       <article>
         <header className="mx-auto max-w-5xl px-5 pb-10 pt-16 text-center md:px-8 md:pb-14 md:pt-24">
           <Link
@@ -63,12 +78,20 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           </div>
         )}
 
-        {/* 💡 關鍵修改區塊：將 className 稍微調整，並使用 dangerouslySetInnerHTML */}
-        {/* 我們拿掉 whitespace-pre-wrap，改為 prose 相關樣式 (如果有的話)，或者讓 HTML 原生標籤發揮作用 */}
         <div className={`mx-auto px-5 py-16 md:py-24 ${isPoetry ? 'max-w-2xl text-center' : 'max-w-3xl'}`}>
           <div 
-            className="font-serif text-lg leading-[2.15] md:text-xl text-foreground text-justify"
-            // 💡 告訴 React 把資料庫裡的 HTML 標籤真正渲染出來
+            className="
+              custom-article-content
+              text-lg leading-[2.15] md:text-xl text-foreground text-justify
+              [&_h1]:text-3xl [&_h1]:md:text-4xl [&_h1]:font-black [&_h1]:mt-10 [&_h1]:mb-5
+              [&_h2]:text-2xl [&_h2]:md:text-3xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4
+              [&_h3]:text-xl [&_h3]:md:text-2xl [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3
+              [&_p]:mb-6 [&_p]:leading-relaxed
+              [&_img]:mx-auto [&_img]:my-8 [&_img]:rounded-md [&_img]:max-w-full [&_img]:h-auto
+              [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6
+              [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4
+              [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4
+            "
             dangerouslySetInnerHTML={{ __html: work.content || '' }}
           />
 
