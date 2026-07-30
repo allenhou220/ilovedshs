@@ -27,6 +27,12 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   const isPoetry = work.category === '新詩';
   const displayImage = work.image_url || work.image;
 
+  // 💡 淨化：殺除編輯器產生的幽靈空白段落
+  const cleanContent = (work.content || '')
+    .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
+    .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')     
+    .replace(/<p>\s*<\/p>/gi, '');             
+
   return (
     <main>
       <style>{`
@@ -40,9 +46,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         .custom-article-content h2,
         .custom-article-content h3 {
           font-family: var(--font-serif, Georgia, serif) !important;
-        }
-        .custom-article-content p:empty::before {
-          content: "\\00A0"; 
         }
       `}</style>
 
@@ -85,17 +88,19 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
             className="
               custom-article-content
               text-lg leading-[2.15] md:text-xl text-foreground text-justify
-              /* 💡 這裡將標題字級全面放大：H1 變成 text-5xl (原本是 4xl) */
               [&_h1]:text-4xl [&_h1]:md:text-5xl [&_h1]:font-black [&_h1]:mt-12 [&_h1]:mb-6
               [&_h2]:text-3xl [&_h2]:md:text-4xl [&_h2]:font-bold [&_h2]:mt-10 [&_h2]:mb-5
               [&_h3]:text-2xl [&_h3]:md:text-3xl [&_h3]:font-semibold [&_h3]:mt-8 [&_h3]:mb-4
-              [&_p]:mb-6 [&_p]:leading-relaxed
+              
+              /* 💡 終極殺招：將段落的外距 (margin) 強制歸零！讓它們完全貼在一起 */
+              [&_p]:!m-0 
+              
               [&_img]:mx-auto [&_img]:my-8 [&_img]:rounded-md [&_img]:max-w-full [&_img]:h-auto
               [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6
               [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4
               [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4
             "
-            dangerouslySetInnerHTML={{ __html: work.content || '' }}
+            dangerouslySetInnerHTML={{ __html: cleanContent }}
           />
 
           <aside className="mt-20 border-y border-border py-8 text-center md:text-left">
