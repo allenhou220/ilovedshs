@@ -29,7 +29,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <main>
-      {/* 💡 終極解法：同時作用於容器與所有子元素，並強制開啟「齊平現代數字 (lining-nums)」 */}
       <style>{`
         .custom-article-content,
         .custom-article-content * {
@@ -41,6 +40,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         .custom-article-content h2,
         .custom-article-content h3 {
           font-family: var(--font-serif, Georgia, serif) !important;
+        }
+        .custom-article-content p:empty::before {
+          content: "\\00A0"; 
         }
       `}</style>
 
@@ -83,9 +85,10 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
             className="
               custom-article-content
               text-lg leading-[2.15] md:text-xl text-foreground text-justify
-              [&_h1]:text-3xl [&_h1]:md:text-4xl [&_h1]:font-black [&_h1]:mt-10 [&_h1]:mb-5
-              [&_h2]:text-2xl [&_h2]:md:text-3xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4
-              [&_h3]:text-xl [&_h3]:md:text-2xl [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-3
+              /* 💡 這裡將標題字級全面放大：H1 變成 text-5xl (原本是 4xl) */
+              [&_h1]:text-4xl [&_h1]:md:text-5xl [&_h1]:font-black [&_h1]:mt-12 [&_h1]:mb-6
+              [&_h2]:text-3xl [&_h2]:md:text-4xl [&_h2]:font-bold [&_h2]:mt-10 [&_h2]:mb-5
+              [&_h3]:text-2xl [&_h3]:md:text-3xl [&_h3]:font-semibold [&_h3]:mt-8 [&_h3]:mb-4
               [&_p]:mb-6 [&_p]:leading-relaxed
               [&_img]:mx-auto [&_img]:my-8 [&_img]:rounded-md [&_img]:max-w-full [&_img]:h-auto
               [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6

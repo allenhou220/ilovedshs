@@ -3,6 +3,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Asterisk } from 'lucide-react'
 import { WorkCard } from '@/components/work-card'
+// 💡 1. 匯入我們剛剛建立的登入彈窗元件
+import LoginModal from '@/components/login-modal'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +31,8 @@ export default async function Page() {
     return (
       <main className="mx-auto max-w-3xl px-5 py-32 text-center">
         <p className="text-muted-foreground">目前還沒有發布任何文章，請先到後台新增。</p>
+        {/* 💡 當沒有文章時，也要把登入按鈕放進來，否則會找不到後台入口 */}
+        <LoginModal />
       </main>
     )
   }
@@ -92,7 +96,6 @@ export default async function Page() {
         </div>
       </section>
 
-      {/* 💡 關鍵新增與修改：加入「採訪 Interview」分類，並調整網格為 4 欄 (lg:grid-cols-4) */}
       <section className="border-y border-border bg-card">
         <div className="mx-auto grid max-w-7xl sm:grid-cols-2 lg:grid-cols-4">
           {['散文 Essay', '新詩 Poetry', '小說 Fiction', '採訪 Interview'].map((item, index) => (

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session) {
-    redirect("/login");
+    redirect("/");
   }
 
   const isAdmin = (session.user as any)?.role === "admin";
@@ -45,58 +45,81 @@ export default async function AdminPage() {
             <Link
               href="/admin/account"
               style={{
-                padding: "8px 16px",
+                width: "128px",
+                height: "40px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 background: "transparent",
                 border: "1px solid #333",
                 color: "#fff",
                 borderRadius: "4px",
                 fontSize: "14px",
                 textDecoration: "none",
+                boxSizing: "border-box",
               }}
             >
               我的帳號
             </Link>
+            
             {isAdmin && (
               <Link
                 href="/admin/users"
                 style={{
-                  padding: "8px 16px",
+                  width: "128px",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   background: "transparent",
                   border: "1px solid #333",
                   color: "#fff",
                   borderRadius: "4px",
                   fontSize: "14px",
                   textDecoration: "none",
+                  boxSizing: "border-box",
                 }}
               >
                 帳號管理
               </Link>
             )}
+            
             <Link
               href="/admin/new"
               style={{
-                padding: "8px 16px",
+                width: "128px",
+                height: "40px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 background: "#2563eb",
                 color: "#fff",
                 borderRadius: "4px",
                 fontSize: "14px",
                 textDecoration: "none",
                 fontWeight: "bold",
+                boxSizing: "border-box",
               }}
             >
               ＋ 新增文章
             </Link>
-            <form action="/api/auth/signout" method="POST">
+            
+            <form action="/api/auth/signout" method="POST" style={{ margin: 0 }}>
               <button
                 type="submit"
                 style={{
-                  padding: "8px 16px",
+                  width: "128px",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   background: "#dc2626",
                   color: "#fff",
                   border: "none",
                   cursor: "pointer",
                   borderRadius: "4px",
                   fontSize: "14px",
+                  boxSizing: "border-box",
                 }}
               >
                 登出系統
