@@ -3,12 +3,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Asterisk } from 'lucide-react'
 import { WorkCard } from '@/components/work-card'
-// 💡 1. 匯入我們剛剛建立的登入彈窗元件
 import LoginModal from '@/components/login-modal'
+import { getSiteSettings } from "@/lib/actions"
 
 export const dynamic = 'force-dynamic'
 
-// 💡 淨化工具：過濾掉內文的 HTML 標籤與圖片碼，只保留乾淨的純文字摘要
 function stripHtml(html: string = '') {
   return html
     .replace(/<[^>]*>?/gm, '')
@@ -19,10 +18,12 @@ function stripHtml(html: string = '') {
 
 export default async function Page() {
   let works: any[] = []
+  let settings: any = null
 
   try {
     const { rows } = await sql`SELECT * FROM works ORDER BY sort_order ASC`
     works = rows
+    settings = await getSiteSettings()
   } catch (error) {
     console.error("讀取資料庫失敗:", error)
   }
@@ -31,18 +32,14 @@ export default async function Page() {
     return (
       <main className="mx-auto max-w-3xl px-5 py-32 text-center">
         <p className="text-muted-foreground">目前還沒有發布任何文章，請先到後台新增。</p>
-        {/* 💡 當沒有文章時，也要把登入按鈕放進來，否則會找不到後台入口 */}
         <LoginModal />
       </main>
     )
   }
 
-  // 精選文章：優先抓後台標記「featured」的那篇，沒有的話 fallback 用第一篇
   const rawFeaturedWork = works.find((w) => w.featured) || works[0]
-  // 最新作品區塊：排除掉精選那篇，取前三篇
   const rawLatestWorks = works.filter((w) => w.id !== rawFeaturedWork.id).slice(0, 3)
 
-  // 💡 將精選與最新文章的 content 通通淨化成純文字
   const featuredWork = {
     ...rawFeaturedWork,
     content: stripHtml(rawFeaturedWork.content || '')
@@ -56,21 +53,41 @@ export default async function Page() {
   return (
     <main>
       <section className="mx-auto max-w-7xl px-5 pb-20 pt-12 md:px-8 md:pb-28 md:pt-20">
+        
         <div className="mb-8 flex items-center justify-between border-b border-foreground pb-4 text-xs tracking-[0.18em] text-muted-foreground">
-          <span>第n期・春季號</span><span>ISSUE n — 2026</span>
+          <span>{settings?.issue_info || '第n期・春季號'}</span>
+          <span>{settings?.issue_year || 'ISSUE n — 2026'}</span>
         </div>
-        <div className="grid gap-10 md:grid-cols-[0.9fr_1.4fr] md:items-end">
+        
+        {/* 💡 這裡將 md:items-end 改成了 md:items-center 確保文字跟圖片完美置中平衡 */}
+        <div className="grid gap-10 md:grid-cols-[0.9fr_1.4fr] md:items-center">
           <div className="flex flex-col gap-8 md:pb-6">
             <p className="flex items-center gap-3 text-sm tracking-[0.25em] text-primary"><Asterisk className="size-4" /> 本期專題</p>
-            <h1 className="text-balance font-serif text-6xl font-black leading-[1.08] tracking-tight md:text-8xl">在鐘聲<br />停下以前</h1>
-            <p className="max-w-md text-pretty text-base leading-loose text-muted-foreground">我們以文字留住放學後的光、雨季裡的窗，以及那些還來不及說出口的青春。六位學生作者，寫下校園生活的不同切面。</p>
-            <Link href={`/works/${featuredWork.id}`} className="inline-flex w-fit items-center gap-3 border-b border-primary pb-2 text-sm font-medium tracking-wider text-primary">閱讀本期首選 <ArrowRight className="size-4" /></Link>
+            
+            <h1 className="text-balance font-serif text-6xl font-black leading-[1.08] tracking-tight md:text-8xl whitespace-pre-wrap">
+              {settings?.hero_title || '在鐘聲\n停下以前'}
+            </h1>
+            
+            <p className="max-w-md text-pretty text-base leading-loose text-muted-foreground">
+              {settings?.hero_subtitle || '我們以文字留住放學後的光、雨季裡的窗，以及那些還來不及說出口的青春。六位學生作者，寫下校園生活的不同切面。'}
+            </p>
+            
+            <Link href={`/works/${featuredWork.id}`} className="inline-flex w-fit items-center gap-3 border-b border-primary pb-2 text-sm font-medium tracking-wider text-primary">
+              閱讀本期首選 <ArrowRight className="size-4" />
+            </Link>
           </div>
+          
           <div className="relative aspect-[4/3] overflow-hidden bg-muted md:aspect-[5/4]">
-            <Image src="/images/hero-library.png" alt="雨後圖書館窗邊的書桌與筆記本" fill priority className="object-cover" sizes="(min-width: 768px) 58vw, 100vw" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src={settings?.hero_image_url || "/images/hero-library.png"} 
+              alt="Cover Story" 
+              className="absolute inset-0 h-full w-full object-cover" 
+            />
+            
             <div className="absolute bottom-0 right-0 bg-primary px-5 py-4 text-primary-foreground">
               <p className="text-xs tracking-[0.18em]">COVER STORY</p>
-              <p className="mt-1 font-serif text-lg font-bold">青春的留白練習</p>
+              <p className="mt-1 font-serif text-lg font-bold">{settings?.cover_story_title || '青春的留白練習'}</p>
             </div>
           </div>
         </div>

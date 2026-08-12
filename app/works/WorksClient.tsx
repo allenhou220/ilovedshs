@@ -2,60 +2,83 @@
 
 import { useEffect, useState } from 'react'
 import { WorkCard } from '@/components/work-card'
+import { RotateCcw } from 'lucide-react'
 
 const PAGE_SIZE = 9
 
-// 💡 核心過濾工具：把內文中的 HTML 標籤（如 <p>, <img>, <strong>）與 Base64 碼通通拿掉，只保留純文字
+// 💡 純文字過濾工具：避免搜尋到內文 HTML 標籤
 function stripHtml(html: string = '') {
   return html
-    .replace(/<[^>]*>?/gm, '') // 移除所有 HTML 標籤
-    .replace(/&nbsp;/g, ' ')   // 轉換空格
-    .replace(/\s+/g, ' ')      // 多餘換行與空格壓縮
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
-// 接收從 Server Component 傳來的資料庫文章
 export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
-  
-  // 強制依照 sort_order 排序
+  // 依 sort_order 排序
   const sortedWorks = [...dbWorks].sort((a, b) => {
     const orderA = a.sort_order ?? 999999;
     const orderB = b.sort_order ?? 999999;
 
     if (orderA !== orderB) {
-      return orderA - orderB; // ASC (由小到大)
+      return orderA - orderB;
     }
     return (b.id || 0) - (a.id || 0);
   });
 
-  // 抓取不重複分類
-  const uniqueCategories = Array.from(new Set(sortedWorks.map(work => work.category || '散文')))
-  const categories = ['全部', ...uniqueCategories]
+  // 動態擷取篩選選單的選項
+  const uniqueIssues = ['全部期數', ...Array.from(new Set(sortedWorks.map(work => work.issue || '第 1 期')))]
+  const sources = ['全部來源', '文薈成員創作', '學生投稿']
+  const uniqueCategories = ['全部類別', ...Array.from(new Set(sortedWorks.map(work => work.category || '散文')))]
 
-  const [activeCategory, setActiveCategory] = useState('全部')
+  // 💡 電商式獨立篩選狀態
+  const [selectedIssue, setSelectedIssue] = useState('全部期數')
+  const [selectedSource, setSelectedSource] = useState('全部來源')
+  const [selectedCategory, setSelectedCategory] = useState('全部類別')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
-  // 進行文章過濾（搜尋時也只搜尋「純文字」內容，避免搜尋到 html 標籤或圖片網址）
+  // 進行多重交集過濾
   const filteredWorks = sortedWorks.filter((work) => {
     const workCategory = work.category || '散文'
-    const matchCategory = activeCategory === '全部' || workCategory === activeCategory
+    const workIssue = work.issue || '第 1 期'
+    const workSource = work.source_type || work.sourceType || '文薈成員創作'
+
+    const matchCategory = selectedCategory === '全部類別' || workCategory === selectedCategory
+    const matchIssue = selectedIssue === '全部期數' || workIssue === selectedIssue
+    const matchSource = selectedSource === '全部來源' || workSource === selectedSource
     
     const cleanContent = stripHtml(work.content || '')
-    const lowercaseQuery = searchQuery.toLowerCase()
+    const lowercaseQuery = searchQuery.toLowerCase().trim()
 
     const matchSearch = 
+      !lowercaseQuery ||
       work.title?.toLowerCase().includes(lowercaseQuery) || 
       work.author?.toLowerCase().includes(lowercaseQuery) || 
-      cleanContent.toLowerCase().includes(lowercaseQuery) || 
-      false
+      cleanContent.toLowerCase().includes(lowercaseQuery)
 
-    return matchCategory && matchSearch
+    return matchCategory && matchIssue && matchSource && matchSearch
   })
+
+  // 判斷是否處於篩選狀態
+  const isFiltered =
+    selectedIssue !== '全部期數' ||
+    selectedSource !== '全部來源' ||
+    selectedCategory !== '全部類別' ||
+    searchQuery !== ''
+
+  // 一鍵重置所有篩選
+  const resetFilters = () => {
+    setSelectedIssue('全部期數')
+    setSelectedSource('全部來源')
+    setSelectedCategory('全部類別')
+    setSearchQuery('')
+  }
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeCategory, searchQuery])
+  }, [selectedCategory, selectedIssue, selectedSource, searchQuery])
 
   const totalPages = Math.max(1, Math.ceil(filteredWorks.length / PAGE_SIZE))
   const paginatedWorks = filteredWorks.slice(
@@ -81,37 +104,84 @@ export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
         </p>
       </header>
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border py-7">
-        <nav className="flex flex-wrap gap-3" aria-label="作品分類">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category as string)}
-              className={`border px-5 py-2 text-sm transition-colors font-serif rounded-sm ${
-                activeCategory === category
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-foreground hover:bg-muted'
-              }`}
+      {/* 💡 電商風格獨立多重篩選列 */}
+      <div className="my-8 rounded-lg border border-border bg-card/50 p-5 backdrop-blur-sm">
+        <div className="flex flex-wrap items-end gap-4">
+          
+          {/* 1. 刊物期數 */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-serif text-muted-foreground">刊物期數</label>
+            <select
+              value={selectedIssue}
+              onChange={(e) => setSelectedIssue(e.target.value)}
+              className="rounded-sm border border-border bg-background px-3 py-2 text-sm font-serif text-foreground focus:border-primary focus:outline-none cursor-pointer"
             >
-              {category as string}
-            </button>
-          ))}
-        </nav>
+              {uniqueIssues.map((issue) => (
+                <option key={issue} value={issue}>
+                  {issue}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="w-full md:w-64 shrink-0">
-          <input
-            type="text"
-            placeholder="搜尋標題、作者、內文..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full border border-border px-4 py-2 text-sm rounded-sm bg-background text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-serif transition-colors"
-          />
+          {/* 2. 文章來源 */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-serif text-muted-foreground">文章來源</label>
+            <select
+              value={selectedSource}
+              onChange={(e) => setSelectedSource(e.target.value)}
+              className="rounded-sm border border-border bg-background px-3 py-2 text-sm font-serif text-foreground focus:border-primary focus:outline-none cursor-pointer"
+            >
+              {sources.map((src) => (
+                <option key={src} value={src}>
+                  {src}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. 文體類別 */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-serif text-muted-foreground">文體類別</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="rounded-sm border border-border bg-background px-3 py-2 text-sm font-serif text-foreground focus:border-primary focus:outline-none cursor-pointer"
+            >
+              {uniqueCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. 關鍵字搜尋 */}
+          <div className="flex min-w-[220px] flex-1 flex-col gap-1.5">
+            <label className="text-xs font-serif text-muted-foreground">關鍵字搜尋</label>
+            <input
+              type="text"
+              placeholder="搜尋標題、作者、內文..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-sm border border-border bg-background px-4 py-2 text-sm font-serif text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {/* 5. 清除篩選按鈕 */}
+          {isFiltered && (
+            <button
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1.5 rounded-sm border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-serif text-destructive transition-colors hover:bg-destructive/20"
+            >
+              <RotateCcw className="size-3.5" /> 清除篩選
+            </button>
+          )}
         </div>
       </div>
       
-      <section className="grid gap-x-8 gap-y-16 py-14 md:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-x-8 gap-y-16 py-8 md:grid-cols-2 lg:grid-cols-3">
         {paginatedWorks.map((work, index) => (
-          /* 💡 關鍵傳參修正：傳給 WorkCard 前，先將 content 淨化成乾淨純文字 */
           <WorkCard 
             key={work.id || index} 
             work={{
@@ -121,7 +191,7 @@ export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
           />
         ))}
         {filteredWorks.length === 0 && (
-          <p className="col-span-full py-12 text-center text-muted-foreground font-serif">
+          <p className="col-span-full py-16 text-center font-serif text-lg text-muted-foreground">
             目前尚無符合條件的作品
           </p>
         )}
@@ -132,7 +202,7 @@ export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
           <button
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
-            className="border border-border px-4 py-2 text-sm font-serif rounded-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            className="rounded-sm border border-border px-4 py-2 font-serif text-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           >
             上一頁
           </button>
@@ -142,9 +212,9 @@ export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
               key={page}
               onClick={() => goToPage(page)}
               aria-current={currentPage === page ? 'page' : undefined}
-              className={`size-10 text-sm font-serif rounded-sm border transition-colors ${
+              className={`size-10 rounded-sm border font-serif text-sm transition-colors ${
                 currentPage === page
-                  ? 'bg-primary text-primary-foreground border-primary'
+                  ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background text-foreground hover:bg-muted'
               }`}
             >
@@ -155,7 +225,7 @@ export default function WorksClient({ dbWorks }: { dbWorks: any[] }) {
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="border border-border px-4 py-2 text-sm font-serif rounded-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            className="rounded-sm border border-border px-4 py-2 font-serif text-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           >
             下一頁
           </button>

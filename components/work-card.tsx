@@ -2,17 +2,15 @@ import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 
 export function WorkCard({ work, featured = false }: { work: any; featured?: boolean }) {
-
-  // 正確的文章連結：使用資料庫的 id（必須轉成字串）
   const targetLink = `/works/${work.id.toString()}`
 
-  // 讀取資料庫的圖片欄位（image_url）
   const displayImage = work.image_url || work.image
-
-  // 讀取摘要（excerpt）或 content
   const displayContent = work.excerpt || work.content || ''
-
   const altText = work.imageAlt || work.title || '文章圖片'
+
+  const issue = work.issue || ''
+  const sourceType = work.source_type || work.sourceType || '文薈成員創作'
+  const isStudent = sourceType === '學生投稿'
 
   return (
     <article className={`group flex flex-col gap-5 ${featured ? 'md:grid md:grid-cols-2 md:items-center md:gap-10' : ''}`}>
@@ -32,7 +30,17 @@ export function WorkCard({ work, featured = false }: { work: any; featured?: boo
       </Link>
 
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3 text-xs tracking-[0.18em] text-primary">
+        {/* 💡 資訊列：學生投稿只顯示「學生投稿」；成員創作只顯示期數 */}
+        <div className="flex flex-wrap items-center gap-2.5 text-xs tracking-[0.18em] text-primary">
+          {isStudent ? (
+            <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-500 tracking-normal">
+              學生投稿
+            </span>
+          ) : (
+            issue && <span className="font-medium">{issue}</span>
+          )}
+
+          <span>・</span>
           <span>{work.category || '散文'}</span>
           <span className="h-px w-8 bg-primary" />
           <span className="text-muted-foreground">{work.author || '匿名'}</span>
@@ -59,4 +67,3 @@ export function WorkCard({ work, featured = false }: { work: any; featured?: boo
     </article>
   )
 }
-

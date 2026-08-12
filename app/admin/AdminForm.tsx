@@ -2,13 +2,18 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
-import { uploadEditorImageAction } from '@/lib/actions';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { ArrowLeft } from 'lucide-react';
 
-// 💡 引入 BlockNote 編輯器核心與專屬樣式
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
-import "@blocknote/core/fonts/inter.css";
-import "@blocknote/mantine/style.css";
+const BlockNoteEditor = dynamic(() => import('@/components/blocknote-editor'), {
+  ssr: false,
+  loading: () => (
+    <p style={{ color: '#71717a', padding: '0 24px', fontSize: '14px' }}>
+      編輯器加載中...
+    </p>
+  ),
+});
 
 function SubmitButton({ label, disabled }: { label: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
@@ -40,6 +45,9 @@ type DefaultValues = {
   title?: string;
   author?: string;
   category?: string;
+  issue?: string;
+  source_type?: string;
+  sourceType?: string;
   content?: string;
   image_url?: string;
 };
@@ -48,25 +56,42 @@ export default function AdminForm({
   handlePublish,
   defaultValues,
   submitLabel = "確認發布",
+  isSubmission = false,
 }: {
   handlePublish: (formData: FormData) => Promise<void>;
   defaultValues?: DefaultValues;
   submitLabel?: string;
+  isSubmission?: boolean;
 }) {
-  // 💡 將標題、作者、分類加入狀態，讓預覽可以「即時連動」
   const [title, setTitle] = useState(defaultValues?.title || '');
   const [author, setAuthor] = useState(defaultValues?.author || '');
   const [category, setCategory] = useState(defaultValues?.category || '散文');
   
+  const initialSource = isSubmission 
+    ? '學生投稿' 
+    : (defaultValues?.source_type || defaultValues?.sourceType || '文薈成員創作');
+    
+  const [sourceType, setSourceType] = useState(initialSource);
+  const [issue, setIssue] = useState(initialSource === '學生投稿' ? '' : (defaultValues?.issue || '第 1 期'));
+  
   const [imagePreview, setImagePreview] = useState<string | null>(defaultValues?.image_url || null);
   const [editorContent, setEditorContent] = useState(defaultValues?.content || '');
   const [isMounted, setIsMounted] = useState(false);
-  
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
+  // 💡 自動同步判定：若為投稿審核模式，強制切換至「學生投稿」並清空期數
+  useEffect(() => {
+    if (isSubmission || defaultValues?.sourceType === '學生投稿' || defaultValues?.source_type === '學生投稿') {
+      setSourceType('學生投稿');
+      setIssue('');
+    }
+  }, [isSubmission, defaultValues]);
+
   const contentSizeBytes = typeof Blob !== 'undefined' ? new Blob([editorContent]).size : 0;
-  const contentSizeMB = (contentSizeBytes / (1024 * 1024)).toFixed(2);
   const isOverLimit = contentSizeBytes > 10 * 1024 * 1024;
+  const displaySize = contentSizeBytes < 1024 * 1024 
+    ? `${(contentSizeBytes / 1024).toFixed(2)} KB` 
+    : `${(contentSizeBytes / (1024 * 1024)).toFixed(2)} MB`;
 
   useEffect(() => {
     setIsMounted(true);
@@ -79,41 +104,12 @@ export default function AdminForm({
     }
   };
 
-  const editor = useCreateBlockNote({
-    uploadFile: async (file) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await uploadEditorImageAction(formData);
-      return res.url || "";
-    }
-  });
-
-  // 💡 修復舊文章讀取失敗的問題：加入 isMounted 確保 DOM 準備好後才塞資料
-  const initLoaded = useRef(false);
-  useEffect(() => {
-    async function loadInitialHTML() {
-      if (isMounted && defaultValues?.content && !initLoaded.current) {
-        try {
-          const blocks = await editor.tryParseHTMLToBlocks(defaultValues.content);
-          editor.replaceBlocks(editor.document, blocks);
-          initLoaded.current = true;
-        } catch (e) {
-          console.error("載入舊文章內容失敗", e);
-        }
-      }
-    }
-    loadInitialHTML();
-  }, [editor, defaultValues?.content, isMounted]);
-
-  const handleEditorChange = async () => {
-    const html = await editor.blocksToHTMLLossy(editor.document);
-    setEditorContent(html);
-  };
-
   const cleanContent = (editorContent || '')
     .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
     .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')     
     .replace(/<p>\s*<\/p>/gi, '');             
+
+  const isStudent = sourceType === "學生投稿";
 
   return (
     <>
@@ -130,6 +126,23 @@ export default function AdminForm({
           font-family: var(--font-serif, Georgia, serif) !important;
         }
       `}</style>
+
+      <div style={{ marginBottom: "16px" }}>
+        <Link 
+          href="/admin/works" 
+          style={{ 
+            display: "inline-flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            fontSize: "14px", 
+            color: "#a1a1aa", 
+            textDecoration: "none",
+            fontWeight: "500"
+          }}
+        >
+          <ArrowLeft size={16} /> 返回文章列表
+        </Link>
+      </div>
 
       <form action={handlePublish} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <div>
@@ -158,7 +171,7 @@ export default function AdminForm({
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#a1a1aa" }}>分類</label>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#a1a1aa" }}>文體分類</label>
             <select 
               name="category" 
               value={category} 
@@ -169,6 +182,54 @@ export default function AdminForm({
               <option value="新詩">新詩</option>
               <option value="小說">小說</option>
               <option value="採訪">採訪</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#a1a1aa" }}>
+              刊物期數 {isStudent && "（學生投稿免填）"}
+            </label>
+            <input 
+              type="text" 
+              name="issue" 
+              disabled={isStudent}
+              placeholder={isStudent ? "學生投稿不需填寫期數" : "例如：第 1 期 或 2026特刊"} 
+              value={isStudent ? "" : issue} 
+              onChange={(e) => setIssue(e.target.value)} 
+              style={{ 
+                width: "100%", 
+                padding: "12px", 
+                background: isStudent ? "#27272a" : "#18181b", 
+                border: "1px solid #27272a", 
+                color: isStudent ? "#71717a" : "#fff", 
+                borderRadius: "6px", 
+                boxSizing: "border-box", 
+                fontSize: "15px",
+                cursor: isStudent ? "not-allowed" : "text"
+              }} 
+            />
+          </div>
+
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#a1a1aa" }}>文章來源</label>
+            <select 
+              name="sourceType" 
+              value={sourceType} 
+              onChange={(e) => {
+                const newSource = e.target.value;
+                setSourceType(newSource);
+                if (newSource === "學生投稿") {
+                  setIssue("");
+                } else if (!issue) {
+                  setIssue("第 1 期");
+                }
+              }} 
+              style={{ width: "100%", padding: "12px", background: "#18181b", border: "1px solid #27272a", color: "#fff", borderRadius: "6px", boxSizing: "border-box", fontSize: "15px" }}
+            >
+              <option value="學生投稿">學生投稿</option>
+              <option value="文薈成員創作">文薈成員創作</option>
             </select>
           </div>
         </div>
@@ -223,7 +284,7 @@ export default function AdminForm({
               border: isOverLimit ? "1px solid #ef4444" : "none"
             }}>
               {isOverLimit ? "⚠️ 超過上限：" : "內文容量："}
-              {contentSizeMB} MB / 10 MB
+              {displaySize} / 10 MB
             </span>
           </div>
           
@@ -232,10 +293,9 @@ export default function AdminForm({
           <div style={{ display: activeTab === "edit" ? "block" : "none" }}>
             <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "6px", padding: "16px 0", minHeight: "400px" }}>
               {isMounted ? (
-                <BlockNoteView 
-                  editor={editor} 
-                  theme="dark" 
-                  onChange={handleEditorChange}
+                <BlockNoteEditor
+                  initialContent={defaultValues?.content || ''}
+                  onChange={setEditorContent}
                 />
               ) : (
                 <p style={{ color: '#71717a', padding: '0 24px', fontSize: '14px' }}>編輯器初始化中...</p>
@@ -247,12 +307,10 @@ export default function AdminForm({
         <SubmitButton label={submitLabel} disabled={isOverLimit} />
       </form>
 
-      {/* 💡 終極前台預覽模式：複製 100% 前台的排版 */}
       {activeTab === "preview" && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-background text-foreground bg-[#09090b]">
-          {/* 頂部控制列 */}
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#09090b] text-white">
           <div className="sticky top-0 z-50 flex items-center justify-between border-b border-[#27272a] bg-[#09090b]/90 backdrop-blur-md px-6 py-4 shadow-sm">
-            <span className="text-sm font-bold tracking-widest text-primary">文薈 - 前台模擬預覽</span>
+            <span className="text-sm font-bold tracking-widest text-[#a1a1aa]">文薈 - 前台模擬預覽</span>
             <button 
               type="button" 
               onClick={() => setActiveTab("edit")}
@@ -262,15 +320,14 @@ export default function AdminForm({
             </button>
           </div>
           
-          {/* 💡 完美複製前台 WorkDetailPage 的結構 */}
           <article className="min-h-screen">
             <header className="mx-auto max-w-5xl px-5 pb-10 pt-16 text-center md:px-8 md:pb-14 md:pt-24">
               <div className="mb-12 inline-flex items-center gap-2 text-xs tracking-[0.18em] text-muted-foreground opacity-50">
                 ← 返回作品總覽 (這只是預覽哦)
               </div>
 
-              <p className="mb-6 text-sm tracking-[0.25em] text-primary">
-                {category || '散文'}
+              <p className="mb-6 text-sm tracking-[0.25em] text-[#a1a1aa]">
+                {isStudent ? "學生投稿" : issue} ・ {category || '散文'}
               </p>
 
               <h1 className="text-balance font-serif text-5xl font-black leading-tight md:text-7xl text-white">
@@ -312,7 +369,7 @@ export default function AdminForm({
               />
 
               <aside className="mt-20 border-y border-[#27272a] py-8 text-center md:text-left">
-                <p className="mb-3 text-xs tracking-[0.2em] text-primary">ABOUT THE AUTHOR</p>
+                <p className="mb-3 text-xs tracking-[0.2em] text-[#a1a1aa]">ABOUT THE AUTHOR</p>
                 <p className="font-serif text-xl font-bold text-white">{author || '匿名'}</p>
               </aside>
             </div>
