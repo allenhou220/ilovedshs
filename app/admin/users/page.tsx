@@ -1,61 +1,97 @@
 import { sql } from "@vercel/postgres";
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { deleteUserAction } from "@/lib/actions";
-import { CreateUserForm } from "@/components/create-user-form";
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { createUserAction } from "@/lib/actions";
+import UserRow from "./UserRow"; 
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
-  if ((session.user as any)?.role !== "admin") {
+  if (!session || (session.user as any)?.role !== "admin") {
     redirect("/admin");
   }
 
-  const { rows: users } = await sql`SELECT id, email, role FROM users ORDER BY id ASC`;
+  // 確保通知欄位存在
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
+  
+  const { rows: users } = await sql`SELECT id, email, role, receive_notifications FROM users ORDER BY id ASC`;
+  const currentUserEmail = session.user?.email;
 
   return (
-    <div style={{ padding: "40px", background: "#121212", color: "#fff", minHeight: "100vh", fontFamily: "sans-serif" }}>
-      <div style={{ maxWidth: "700px", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+    <div className="min-h-screen bg-[#121212] text-white py-12 px-5 font-sans">
+      <div className="max-w-4xl mx-auto">
+        
+        <div className="flex justify-between items-end mb-8">
           <div>
-            <h1 style={{ fontSize: "24px", marginBottom: "8px", fontWeight: "bold" }}>帳號管理</h1>
-            <p style={{ color: "#888", fontSize: "14px" }}>新增或移除老師／學生的登入帳號</p>
+            <h1 className="text-2xl font-bold mb-2">帳號管理</h1>
+            <p className="text-gray-400 text-sm">新增或移除老師/學生的登入帳號，並設定權限與通知</p>
           </div>
-          <Link href="/admin" style={{ color: "#888", fontSize: "14px", textDecoration: "none" }}>
+          <Link href="/admin" className="text-gray-400 text-sm hover:text-white transition">
             ← 返回後台
           </Link>
         </div>
 
-        <CreateUserForm />
-
-        <div style={{ display: "flex", flexDirection: "column", border: "1px solid #2a2a2a", borderRadius: "6px", overflow: "hidden" }}>
-          {users.map((u: any) => (
-            <div
-              key={u.id}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #2a2a2a" }}
-            >
-              <div>
-                <p style={{ fontSize: "14px" }}>{u.email}</p>
-                <p style={{ fontSize: "12px", color: u.role === "admin" ? "#fbbf24" : "#888" }}>
-                  {u.role === "admin" ? "總管理員" : "編輯"}
-                </p>
-              </div>
-              <form action={deleteUserAction.bind(null, u.id)}>
-                <button
-                  type="submit"
-                  style={{ padding: "6px 12px", fontSize: "13px", border: "1px solid #7f1d1d", borderRadius: "4px", background: "transparent", color: "#f87171", cursor: "pointer" }}
-                >
-                  刪除
-                </button>
-              </form>
+        {/* 新增帳號表單 */}
+        <div className="bg-[#18181b] border border-[#27272a] rounded-lg p-6 mb-8">
+          <form 
+  action={async (formData) => {
+    "use server";
+    await createUserAction(formData);
+  }} 
+  className="flex flex-col md:flex-row items-end gap-4"
+>
+            <div className="flex-1 w-full">
+              <label className="block text-xs text-gray-400 mb-2">Email</label>
+              <input 
+                type="email" 
+                name="email" 
+                required 
+                className="w-full bg-[#121212] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              />
             </div>
-          ))}
-          {users.length === 0 && <p style={{ padding: "24px", textAlign: "center", color: "#666" }}>目前沒有帳號</p>}
+            
+            <div className="flex-1 w-full">
+              <label className="block text-xs text-gray-400 mb-2">密碼</label>
+              <input 
+                type="text" 
+                name="password" 
+                required 
+                placeholder="手動輸入"
+                className="w-full bg-[#121212] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="w-full md:w-auto">
+              <label className="block text-xs text-gray-400 mb-2">身分</label>
+              <select 
+                name="role" 
+                className="w-full bg-[#121212] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              >
+                <option value="editor">編輯 (老師/學生)</option>
+                <option value="admin">總管理員</option>
+              </select>
+            </div>
+
+            <button type="submit" className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded text-sm transition">
+              新增帳號
+            </button>
+          </form>
         </div>
+
+        {/* 使用者列表 */}
+        <div className="bg-[#18181b] border border-[#27272a] rounded-lg overflow-hidden">
+          {users.map((user) => (
+            <UserRow 
+              key={user.id} 
+              user={user} 
+              isCurrentUser={user.email === currentUserEmail} 
+            />
+          ))}
+        </div>
+
       </div>
     </div>
   );

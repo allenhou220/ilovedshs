@@ -10,7 +10,7 @@ import { Resend } from "resend";
 import { createClient } from "redis";
 import { headers } from "next/headers";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_to_pass_build");
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {
@@ -45,7 +45,16 @@ async function ensureColumnsExist() {
   }
 }
 
-// 新增文章
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any)?.role !== "admin") {
+    throw new Error("權限不足，僅限總管理員操作");
+  }
+  return session;
+}
+
+// ===== 文章管理功能 =====
+
 export async function createWorkAction(formData: FormData) {
   await requireSession();
   await ensureColumnsExist();
@@ -55,7 +64,6 @@ export async function createWorkAction(formData: FormData) {
   const category = String(formData.get("category") || "散文");
   const sourceType = String(formData.get("sourceType") || "文薈成員創作").trim();
   
-  // 💡 學生投稿不設期數，設為空字串
   const issue = sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim();
   const content = String(formData.get("content") || "").trim();
   const imageFile = formData.get("image") as File | null;
@@ -87,7 +95,6 @@ export async function createWorkAction(formData: FormData) {
   redirect("/admin/works");
 }
 
-// 更新文章
 export async function updateWorkAction(id: number, formData: FormData) {
   await requireSession();
   await ensureColumnsExist();
@@ -97,7 +104,6 @@ export async function updateWorkAction(id: number, formData: FormData) {
   const category = String(formData.get("category") || "散文");
   const sourceType = String(formData.get("sourceType") || "文薈成員創作").trim();
   
-  // 💡 學生投稿不設期數，設為空字串
   const issue = sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim();
   const content = String(formData.get("content") || "").trim();
   const existingImageUrl = String(formData.get("existingImage") || "");
@@ -181,15 +187,24 @@ export async function moveWorkAction(id: number, direction: "up" | "down") {
   revalidatePath("/");
 }
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any)?.role !== "admin") {
-    throw new Error("權限不足，僅限總管理員操作");
+export async function uploadEditorImageAction(formData: FormData) {
+  await requireSession();
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "未選擇圖片" };
   }
-  return session;
+
+  const uniqueFilename = `editor/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+  const blob = await put(uniqueFilename, file, {
+    access: "public",
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+  });
+
+  return { url: blob.url };
 }
 
-// 💡 加入了檢查重複帳號的防呆機制
+// ===== 帳號管理功能 =====
+
 export async function createUserAction(formData: FormData) {
   await requireAdmin();
   const bcrypt = (await import("bcryptjs")).default;
@@ -200,7 +215,6 @@ export async function createUserAction(formData: FormData) {
   if (!email || !password) return { error: "請填寫完整資訊" };
 
   try {
-    // 檢查信箱是否已存在
     const { rowCount } = await sql`SELECT 1 FROM users WHERE email = ${email}`;
     if (rowCount !== null && rowCount > 0) {
       return { error: "此信箱已經被註冊過囉！" };
@@ -260,21 +274,26 @@ export async function changePasswordAction(formData: FormData) {
   return { success: true };
 }
 
-export async function uploadEditorImageAction(formData: FormData) {
-  await requireSession();
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) {
-    return { error: "未選擇圖片" };
+export async function updateUserRoleAction(id: number, role: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any)?.role !== "admin") {
+    throw new Error("權限不足，僅限總管理員操作");
   }
-
-  const uniqueFilename = `editor/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-  const blob = await put(uniqueFilename, file, {
-    access: "public",
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
-
-  return { url: blob.url };
+  await sql`UPDATE users SET role = ${role} WHERE id = ${id}`;
+  revalidatePath("/admin/users");
 }
+
+export async function toggleUserNotificationAction(id: number, currentStatus: boolean) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user as any)?.role !== "admin") {
+    throw new Error("權限不足，僅限總管理員操作");
+  }
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
+  await sql`UPDATE users SET receive_notifications = ${!currentStatus} WHERE id = ${id}`;
+  revalidatePath("/admin/users");
+}
+
+// ===== 學生投稿功能 =====
 
 export async function submitStudentWorkAction(formData: FormData) {
   const honeypot = String(formData.get("website_hp") || "");
@@ -335,39 +354,37 @@ export async function submitStudentWorkAction(formData: FormData) {
     VALUES (${studentClass}, ${seatNumber}, ${authorName}, ${email}, ${category}, ${title}, ${content}, ${imageUrl}, 'pending', ${isAnonymous})
   `;
 
+  // 💡 寄信通知邏輯：直接向資料庫查詢開啟通知的使用者
   try {
-    const adminEmailString = process.env.ADMIN_EMAIL;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
+    
+    const { rows: notifyUsers } = await sql`SELECT email FROM users WHERE receive_notifications = true`;
+    const adminEmailsArray = notifyUsers.map(u => u.email).filter(e => e.length > 0);
+    
     const siteUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-    if (adminEmailString && process.env.RESEND_API_KEY) {
-      const adminEmailsArray = adminEmailString
-        .split(",")
-        .map(e => e.trim())
-        .filter(e => e.length > 0);
-
-      if (adminEmailsArray.length > 0) {
-        await resend.emails.send({
-          from: "onboarding@resend.dev",
-          to: adminEmailsArray,
-          subject: `【新投稿通知】${studentClass} ${authorName} - 《${title}》`,
-          html: `
-            <div style="font-family: sans-serif; padding: 24px; color: #333; background-color: #f9f9f9; border-radius: 8px;">
-              <h2 style="color: #8c4033; margin-top: 0;">📩 收到新的學生作品投稿！</h2>
-              <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;" />
-              <p><strong>文章標題：</strong> ${title}</p>
-              <p><strong>文章分類：</strong> ${category}</p>
-              <p><strong>投稿學生：</strong> ${studentClass} ${seatNumber}號 - ${authorName}</p>
-              <p><strong>聯絡信箱：</strong> ${email}</p>
-              <p><strong>發表方式：</strong> ${isAnonymous ? "🕵️ 要求匿名發表" : "👤 具名發表"}</p>
-              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
-              <a href="${siteUrl}/admin/submissions" 
-                 style="display: inline-block; background-color: #8c4033; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
-                🚀 前往後台審核稿件
-              </a>
-            </div>
-          `,
-        });
-      }
+    if (adminEmailsArray.length > 0 && process.env.RESEND_API_KEY) {
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: adminEmailsArray,
+        subject: `【新投稿通知】${studentClass} ${authorName} - 《${title}》`,
+        html: `
+          <div style="font-family: sans-serif; padding: 24px; color: #333; background-color: #f9f9f9; border-radius: 8px;">
+            <h2 style="color: #8c4033; margin-top: 0;">📩 收到新的學生作品投稿！</h2>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;" />
+            <p><strong>文章標題：</strong> ${title}</p>
+            <p><strong>文章分類：</strong> ${category}</p>
+            <p><strong>投稿學生：</strong> ${studentClass} ${seatNumber}號 - ${authorName}</p>
+            <p><strong>聯絡信箱：</strong> ${email}</p>
+            <p><strong>發表方式：</strong> ${isAnonymous ? "🕵️ 要求匿名發表" : "👤 具名發表"}</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
+            <a href="${siteUrl}/admin/submissions" 
+               style="display: inline-block; background-color: #8c4033; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+              🚀 前往後台審核稿件
+            </a>
+          </div>
+        `,
+      });
     }
   } catch (error) {
     console.error("Email 通知發送失敗：", error);
@@ -376,7 +393,6 @@ export async function submitStudentWorkAction(formData: FormData) {
   revalidatePath("/admin/submissions");
 }
 
-// 審核並發布學生投稿
 export async function publishSubmissionAction(submissionId: string, formData: FormData) {
   await requireSession();
   await ensureColumnsExist();
@@ -386,7 +402,6 @@ export async function publishSubmissionAction(submissionId: string, formData: Fo
   const category = String(formData.get("category") || "散文");
   const sourceType = String(formData.get("sourceType") || "學生投稿").trim();
   
-  // 💡 學生投稿期數設為空字串，發布時不會自動帶入「第 1 期」
   const issue = sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim();
   const content = String(formData.get("content") || "").trim();
   
@@ -420,6 +435,8 @@ export async function publishSubmissionAction(submissionId: string, formData: Fo
   revalidatePath("/");
   redirect("/admin/submissions");
 }
+
+// ===== 首頁外觀與網站設定 =====
 
 export async function getSiteSettings() {
   try {
@@ -471,22 +488,17 @@ export async function updateSiteSettingsAction(formData: FormData) {
   revalidatePath("/admin/homepage");
 }
 
-// ===== 投稿開關功能 =====
-
-// 取得目前是否開放投稿
 export async function getSubmissionStatus() {
   try {
-    // 確保資料庫有這個欄位
     await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS is_submission_open BOOLEAN DEFAULT true;`;
     const { rows } = await sql`SELECT is_submission_open FROM site_settings WHERE id = 1`;
     return rows[0]?.is_submission_open ?? true;
   } catch (error) {
     console.error("讀取投稿狀態失敗:", error);
-    return true; // 預設開放
+    return true; 
   }
 }
 
-// 切換開放/關閉狀態 (僅限總管理員)
 export async function toggleSubmissionStatusAction(currentStatus: boolean) {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any)?.role !== "admin") {
@@ -503,7 +515,6 @@ export async function toggleSubmissionStatusAction(currentStatus: boolean) {
     ON CONFLICT (id) DO UPDATE SET is_submission_open = EXCLUDED.is_submission_open;
   `;
 
-  // 刷新後台與前台投稿頁面的快取 (若你的前台投稿頁面路徑不同，請修改這邊)
   revalidatePath("/admin");
   revalidatePath("/submit"); 
 }
