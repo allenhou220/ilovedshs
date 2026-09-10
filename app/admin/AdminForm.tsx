@@ -79,7 +79,6 @@ export default function AdminForm({
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
-  // 💡 自動同步判定：若為投稿審核模式，強制切換至「學生投稿」並清空期數
   useEffect(() => {
     if (isSubmission || defaultValues?.sourceType === '學生投稿' || defaultValues?.source_type === '學生投稿') {
       setSourceType('學生投稿');
@@ -182,6 +181,7 @@ export default function AdminForm({
               <option value="新詩">新詩</option>
               <option value="小說">小說</option>
               <option value="採訪">採訪</option>
+              <option value="漫畫">漫畫</option>
             </select>
           </div>
         </div>

@@ -1,25 +1,126 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Asterisk } from 'lucide-react'
 
-export const metadata: Metadata = { title: '關於文薈', description: '認識文薈理念與團隊。' }
+export const metadata: Metadata = { 
+  title: '關於文薈', 
+  description: '東山學生文學誌《文薈》的創辦理念、核心精神與發行初衷。' 
+}
 
 export default function AboutPage() {
-  return <main>
-    <section className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24">
-      <p className="mb-5 text-xs tracking-[0.22em] text-primary">ABOUT / 關於我們</p>
-      <h1 className="max-w-5xl text-balance font-serif text-6xl font-black leading-[1.15] md:text-8xl">文學不是遠方，<br />而是此刻的生活。</h1>
-      <div className="mt-14 grid gap-10 md:grid-cols-[1.4fr_0.8fr] md:items-end">
-        <div className="relative aspect-[16/10] overflow-hidden"><Image src="/images/campus-corridor.png" alt="午後安靜的校園走廊" fill className="object-cover" sizes="(min-width: 768px) 65vw, 100vw" /></div>
-        <p className="border-t border-foreground pt-5 text-pretty text-lg leading-loose text-muted-foreground">文薈誕生於東山一群對文學有熱忱的學生。我們希望在課業之外，給東山學生一個可以慢慢說話、也願意仔細聆聽的地方。</p>
-      </div>
-    </section>
-    <section className="bg-secondary py-20 text-secondary-foreground md:py-28">
-      <div className="mx-auto grid max-w-7xl gap-14 px-5 md:grid-cols-3 md:px-8">
-        {[['01','閱讀','讓每篇作品被認真對待。編輯不只是修正文字，更是理解作者想說的話。'],['02','書寫','鼓勵真實而有個性的聲音。題材可以很小，只要那是你真正看見的世界。'],['03','相遇','讓不同年級、不同經驗的人在文字裡相遇，交換觀看校園與成長的方式。']].map(([n,t,d]) => <div key={n} className="flex flex-col gap-5 border-t border-secondary-foreground/30 pt-5"><span className="text-xs tracking-widest text-secondary-foreground/50">{n} / OUR VALUE</span><h2 className="font-serif text-4xl font-bold">{t}</h2><p className="text-sm leading-loose text-secondary-foreground/65">{d}</p></div>)}
-      </div>
-    </section>
-    <section className="mx-auto max-w-5xl px-5 py-24 text-center md:px-8 md:py-32"><p className="mb-5 text-xs tracking-[0.22em] text-primary">JOIN THE STORY</p><h2 className="text-balance font-serif text-4xl font-bold md:text-6xl">下一篇故事，也許由你書寫。</h2><Link href="/submit" className="mt-10 inline-flex items-center gap-3 bg-primary px-7 py-4 text-sm tracking-wider text-primary-foreground">查看投稿方式 <ArrowRight className="size-4" /></Link></section>
-  </main>
+  return (
+    <main className="bg-background text-foreground">
+      {/* ===== Hero 主視覺區塊 ===== */}
+      <section className="mx-auto max-w-7xl px-5 pb-20 pt-16 md:px-8 md:pb-28 md:pt-24">
+        <div className="mb-12 border-b border-border/60 pb-6">
+          <p className="font-display text-xs font-bold tracking-[0.3em] text-primary uppercase">
+            ABOUT / 關於我們
+          </p>
+        </div>
+
+        <div className="grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:gap-20 lg:items-center">
+          <div>
+            <h1 className="text-balance font-serif text-5xl font-light leading-[1.25] tracking-wide sm:text-6xl md:text-7xl text-foreground">
+              文學不是遠方，<br />而是此刻的生活。
+            </h1>
+            <p className="mt-8 max-w-xl font-serif text-base md:text-lg leading-[2.1] text-muted-foreground font-light text-justify">
+              東山文薈誕生於東山高中一群對文學懷抱熱忱的學生。在繁忙緊湊的課業之外，我們希望能為校園築起一座可以慢慢說話、也願意仔細聆聽的角落。
+            </p>
+          </div>
+
+          {/* 校園意象圖片 */}
+          <div className="group relative aspect-[4/3] w-full overflow-hidden rounded-md border border-border/40 bg-muted/30 shadow-sm">
+            <img 
+              src="/images/wenhui logo.png" 
+              alt="東山校園走廊" 
+              className="h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-105" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60" />
+          </div>
+        </div>
+      </section>
+
+      {/* ===== 核心理念（3 欄極簡網格） ===== */}
+      <section className="border-y border-border/60 bg-muted/20 py-20 md:py-28">
+        <div className="mx-auto max-w-7xl px-5 md:px-8">
+          <div className="mb-16 flex items-end justify-between border-b border-border/60 pb-6">
+            <div>
+              <p className="mb-2 font-display text-xs font-bold tracking-[0.3em] text-primary uppercase">OUR VALUES</p>
+              <h2 className="font-serif text-3xl font-light tracking-wide md:text-4xl">核心理念</h2>
+            </div>
+            <span className="font-display text-5xl md:text-6xl font-light text-muted-foreground/20 leading-none">03</span>
+          </div>
+
+          <div className="grid gap-8 sm:grid-cols-3">
+            {[
+              {
+                num: '01',
+                title: '紀錄青春',
+                en: 'RECORD',
+                desc: '把那些看似微小的日常、放學後的夕陽，與成長裡的迷惘，用真誠的文字與線條逐一定格。'
+              },
+              {
+                num: '02',
+                title: '傾聽聲音',
+                en: 'LISTEN',
+                desc: '不設限體裁與立場，讓每一種來自校園各個角落的獨特視角，都能在這裡找到共鳴與迴響。'
+              },
+              {
+                num: '03',
+                title: '給予留白',
+                en: 'SPACE',
+                desc: '在快速運轉的校園節奏中，提供一處能隨意沉澱、思考與純粹享受閱讀的文學空間。'
+              }
+            ].map((item) => (
+              <div key={item.num} className="flex flex-col justify-between border border-border/60 bg-card p-8 transition-colors duration-500 hover:border-primary/50">
+                <div className="flex items-start justify-between mb-10">
+                  <span className="font-display text-xs font-bold tracking-widest text-primary">{item.num}</span>
+                  <span className="font-display text-[10px] tracking-widest uppercase text-muted-foreground/50">{item.en}</span>
+                </div>
+                <div>
+                  <h3 className="mb-4 font-serif text-2xl font-light text-foreground">{item.title}</h3>
+                  <p className="font-serif text-xs leading-relaxed text-muted-foreground font-light text-justify">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== 雜誌宣言長文區塊 ===== */}
+      <section className="mx-auto max-w-4xl px-5 py-24 md:px-8 md:py-32">
+        <div className="flex flex-col items-center text-center">
+          <p className="mb-4 font-display text-xs font-bold tracking-[0.3em] text-primary uppercase">MANIFESTO</p>
+          <h2 className="mb-12 font-serif text-3xl md:text-4xl font-light tracking-wide">為什麼我們需要文薈？</h2>
+        </div>
+        
+        <div className="space-y-8 font-serif text-base md:text-lg leading-[2.2] text-foreground/85 font-light text-justify">
+          <p>
+            文學不該只停留在考卷上的閱讀理解，或是課本裡的遠古經典。它應該是活生生的——是午後陣雨打在窗框上的聲音、是鐘聲響起時心底微小的悸動，也是青春裡那些尚未找到答案的迷惘。
+          </p>
+          <p>
+            《東山文薈》由東山高中的學生自主發起與編輯。我們深信，每一個學生都有屬於自己的獨特視角與故事。透過散文、新詩、小說、採訪與漫畫，我們嘗試建立一個屬於我們的精神空間，紀錄這段無法重來的歲月。
+          </p>
+        </div>
+
+        {/* 底部行動按鈕 */}
+        <div className="mt-20 flex flex-col items-center justify-center gap-6 sm:flex-row">
+          <Link 
+            href="/works" 
+            className="group inline-flex items-center gap-3 border border-border px-8 py-3.5 font-serif text-xs tracking-[0.2em] text-foreground transition-colors duration-500 hover:bg-muted/50"
+          >
+            閱讀所有作品
+            <ArrowRight className="size-4 transition-transform duration-500 group-hover:translate-x-1" />
+          </Link>
+          <Link 
+            href="/submit" 
+            className="group inline-flex items-center gap-3 bg-primary px-8 py-3.5 font-serif text-xs tracking-[0.2em] text-primary-foreground transition-colors duration-500 hover:bg-primary/90"
+          >
+            參與徵稿
+            <ArrowRight className="size-4 transition-transform duration-500 group-hover:translate-x-1" />
+          </Link>
+        </div>
+      </section>
+    </main>
+  )
 }

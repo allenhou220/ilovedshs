@@ -13,57 +13,61 @@ export function WorkCard({ work, featured = false }: { work: any; featured?: boo
   const isStudent = sourceType === '學生投稿'
 
   return (
-    <article className={`group flex flex-col gap-5 ${featured ? 'md:grid md:grid-cols-2 md:items-center md:gap-10' : ''}`}>
+    <article className={`group flex flex-col gap-6 md:gap-8 ${featured ? 'md:grid md:grid-cols-2 md:items-center md:gap-16' : ''}`}>
 
+      {/* 💡 拔除背景的殘留動畫 */}
       <Link href={targetLink} className="relative block aspect-[4/3] overflow-hidden bg-muted">
         {displayImage ? (
           <img
             src={displayImage}
             alt={altText}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            className="h-full w-full object-cover transition-all duration-700 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-muted text-sm text-muted-foreground font-serif">
+          <div className="flex h-full w-full items-center justify-center bg-muted text-xs tracking-widest text-muted-foreground font-serif border border-border">
             無圖片
           </div>
         )}
       </Link>
 
-      <div className="flex flex-col gap-3">
-        {/* 💡 資訊列：學生投稿只顯示「學生投稿」；成員創作只顯示期數 */}
-        <div className="flex flex-wrap items-center gap-2.5 text-xs tracking-[0.18em] text-primary">
+      <div className="flex flex-col gap-4">
+        {/* 💡 拔除所有 span 文字的殘留動畫 */}
+        <div className="flex flex-wrap items-center gap-3 text-[10px] tracking-[0.2em] text-muted-foreground">
           {isStudent ? (
-            <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-500 tracking-normal">
+            <span className="border border-border px-2 py-1 text-muted-foreground">
               學生投稿
             </span>
           ) : (
-            issue && <span className="font-medium">{issue}</span>
+            issue && <span className="font-medium text-muted-foreground">{issue}</span>
           )}
 
-          <span>・</span>
+          <span className="text-muted-foreground/50">/</span>
           <span>{work.category || '散文'}</span>
-          <span className="h-px w-8 bg-primary" />
-          <span className="text-muted-foreground">{work.author || '匿名'}</span>
+          <span className="h-[1px] w-6 bg-border" />
+          <span className="tracking-widest text-foreground/80">{work.author || '匿名'}</span>
         </div>
 
-        <h3 className={`${featured ? 'text-3xl md:text-5xl' : 'text-2xl'} text-balance font-serif font-bold leading-tight`}>
-          <Link href={targetLink} className="transition-colors hover:text-primary">
+        {/* 💡 標題：只保留 group-hover 時的漸變，不干擾全域切換 */}
+        <h3 className={`${featured ? 'text-4xl md:text-[2.75rem]' : 'text-2xl'} text-balance font-serif font-normal leading-[1.35] text-foreground transition-colors duration-500 group-hover:text-primary`}>
+          <Link href={targetLink} className="block">
             {work.title}
           </Link>
         </h3>
 
-        <p className="line-clamp-3 text-pretty text-sm leading-relaxed text-muted-foreground">
+        {/* 💡 拔除內文的殘留動畫 */}
+        <p className="line-clamp-3 text-pretty text-sm leading-[1.8] text-muted-foreground">
           {displayContent}
         </p>
 
+        {/* 💡 按鈕 Hover 動畫保留 */}
         <Link
           href={targetLink}
-          className="mt-1 inline-flex w-fit items-center gap-2 text-sm font-medium tracking-wider underline decoration-primary underline-offset-8"
+          className="mt-2 inline-flex w-fit items-center gap-2 border-b border-border pb-1 text-xs font-medium tracking-[0.2em] text-muted-foreground transition-all duration-500 hover:border-foreground hover:text-foreground"
         >
-          閱讀全文 <ArrowUpRight className="size-4" />
+          閱讀全文 
+          <ArrowUpRight className="size-3.5 transition-transform duration-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
         </Link>
       </div>
-
     </article>
   )
 }
