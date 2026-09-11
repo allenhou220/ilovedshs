@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 
-// 💡 自訂日期格式化，確保伺服器與瀏覽器渲染出的文字完全一致 (解決 Hydration Mismatch)
+// 💡 1. 接收從外層 page.tsx 傳進來的 onDelete (Server Action)
 function formatDate(dateString: string) {
   if (!dateString) return "";
   const d = new Date(dateString);
@@ -16,8 +16,15 @@ function formatDate(dateString: string) {
   return `${year}/${month}/${day} ${hours}:${minutes}`;
 }
 
-export default function SubmissionsList({ submissions }: { submissions: any[] }) {
+export default function SubmissionsList({ 
+  submissions,
+  onDelete 
+}: { 
+  submissions: any[];
+  onDelete?: (id: number | string) => Promise<void>; 
+}) {
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<number | string | null>(null);
 
   const filtered = submissions.filter((sub) => {
     const q = search.toLowerCase().trim();
@@ -37,6 +44,22 @@ export default function SubmissionsList({ submissions }: { submissions: any[] })
       seat.includes(q)
     );
   });
+
+  const handleDelete = async (id: number | string) => {
+    if (!confirm('確定要刪除這篇投稿嗎？此動作無法復原。')) return;
+    
+    setDeletingId(id);
+    try {
+      if (onDelete) {
+        await onDelete(id);
+      }
+    } catch (err) {
+      alert("刪除失敗，請稍後再試。");
+      console.error(err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div>
@@ -86,7 +109,18 @@ export default function SubmissionsList({ submissions }: { submissions: any[] })
                   </div>
                 </div>
 
-                <div className="shrink-0">
+                <div className="shrink-0 flex flex-col md:flex-row items-center gap-3">
+                  {/* 💡 2. 刪除按鈕 */}
+                  <button
+                    type="button"
+                    disabled={deletingId === sub.id}
+                    onClick={() => handleDelete(sub.id)}
+                    className="inline-flex items-center gap-1.5 rounded-sm border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 hover:bg-red-500/20 active:opacity-70 disabled:opacity-50 transition-colors"
+                  >
+                    <Trash2 className="size-4" />
+                    {deletingId === sub.id ? '刪除中...' : '刪除稿件'}
+                  </button>
+
                   <Link
                     href={`/admin/submissions/${sub.id}`}
                     className="inline-block rounded-sm bg-white px-6 py-3 text-sm font-bold text-black transition-colors hover:bg-gray-200"

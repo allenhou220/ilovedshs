@@ -4,8 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { revalidatePath } from "next/cache";
 
-// 💡 修正：@/ 已代表 app/，直接寫 @/components/submissions-list 即可
 import SubmissionsList from "@/components/submissions-list";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +13,13 @@ export const dynamic = "force-dynamic";
 export default async function SubmissionsPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
+
+  // 💡 直接在這裏寫刪除邏輯 (Server Action)
+  async function deleteSubmission(id: number | string) {
+    'use server'
+    await sql`DELETE FROM submissions WHERE id = ${id}`;
+    revalidatePath('/admin/submissions'); // 刪除後自動重刷頁面與數字計數
+  }
 
   const { rows } = await sql`
     SELECT * FROM submissions 
@@ -42,7 +49,8 @@ export default async function SubmissionsPage() {
           </div>
         </header>
 
-        <SubmissionsList submissions={rows as any[]} />
+        {/* 💡 把 onDelete 傳進去 */}
+        <SubmissionsList submissions={rows as any[]} onDelete={deleteSubmission} />
       </div>
     </div>
   );

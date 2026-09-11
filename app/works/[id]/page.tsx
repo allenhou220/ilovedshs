@@ -7,11 +7,15 @@ import type { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// 動態生成 LINE / IG / FB 社群分享預覽圖
+// 💡 1. 這裡的 id 現在其實接到的會是「文章標題」
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
+  // 將網址編碼轉換回原本的中文字
+  const decodedTitle = decodeURIComponent(id); 
+  
   try {
-    const { rows } = await sql`SELECT title, author, content, image_url FROM works WHERE id = ${id}`;
+    // 💡 改用 title 去資料庫搜尋
+    const { rows } = await sql`SELECT title, author, content, image_url FROM works WHERE title = ${decodedTitle}`;
     if (rows.length > 0) {
       const work = rows[0];
       const cleanDesc = (work.content || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().slice(0, 100);
@@ -34,11 +38,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // 將網址編碼轉換回原本的中文字
+  const decodedTitle = decodeURIComponent(id);
 
   let work = null;
 
   try {
-    const { rows } = await sql`SELECT * FROM works WHERE id = ${id}`;
+    // 💡 2. 改用 title 去資料庫搜尋對應的文章
+    const { rows } = await sql`SELECT * FROM works WHERE title = ${decodedTitle}`;
     if (rows.length > 0) {
       work = rows[0];
     }
@@ -54,7 +61,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   const isPoetry = work.category === '新詩';
   const displayImage = work.image_url;
 
-  // 自動解析漫畫圖片網址 (若為漫畫類別)
   const comicImages: string[] = [];
   if (isComic && work.content) {
     const imgRegex = /<img[^>]+src=["']([^"']+)["']/g;
@@ -64,7 +70,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     }
   }
 
-  // 淨化：殺除編輯器產生的幽靈空白段落
   const cleanContent = (work.content || '')
     .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
     .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')     
@@ -72,7 +77,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-[calc(6rem+env(safe-area-inset-bottom))]">
-
       <style>{`
         .custom-article-content,
         .custom-article-content * {
@@ -100,32 +104,25 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
             {work.category || '散文'}
           </p>
 
-          <h1 className="text-balance font-serif text-5xl font-black leading-tight md:text-7xl">
+          <h1 className="text-balance font-serif text-3xl font-light leading-tight tracking-wide sm:text-5xl md:text-6xl text-foreground">
             {work.title}
           </h1>
 
           <div className="mt-8 flex items-center justify-center gap-3 text-sm">
-            <span className="font-medium text-foreground">{work.author || '匿名'}</span>
+            <span className="font-medium text-foreground/80">{work.author || '匿名'}</span>
           </div>
         </header>
 
-        {/* 封面圖片（非漫畫類別時才顯示） */}
         {displayImage && !isComic && (
           <div className="mx-auto max-w-5xl px-5 md:px-8 mb-12">
             <div className="relative aspect-video w-full overflow-hidden rounded-md border border-border bg-muted">
-              <img
-                src={displayImage}
-                alt={work.title}
-                className="h-full w-full object-cover"
-              />
+              <img src={displayImage} alt={work.title} className="h-full w-full object-cover" />
             </div>
           </div>
         )}
 
-        {/* 條件分流：漫畫條漫閱讀器 vs 一般文章閱讀區 */}
         {isComic ? (
           <section className="mx-auto max-w-3xl px-0 md:px-4">
-            {/* 無縫垂直拼接圖片 */}
             <div className="flex flex-col items-center bg-black/90 p-0 md:rounded-md md:border md:border-border/40 overflow-hidden shadow-2xl">
               {comicImages.length > 0 ? (
                 comicImages.map((src, index) => (
@@ -144,7 +141,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                 />
               )}
             </div>
-
             <aside className="mt-16 mx-5 border-y border-border py-8 text-center md:text-left">
               <p className="mb-3 text-xs tracking-[0.2em] text-primary">ABOUT THE AUTHOR</p>
               <p className="font-serif text-xl font-bold">{work.author || '匿名'}</p>
@@ -156,9 +152,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
               className="
                 custom-article-content
                 text-lg leading-[2.15] md:text-xl text-foreground text-justify
-                [&_h1]:text-4xl [&_h1]:md:text-5xl [&_h1]:font-black [&_h1]:mt-12 [&_h1]:mb-6
-                [&_h2]:text-3xl [&_h2]:md:text-4xl [&_h2]:font-bold [&_h2]:mt-10 [&_h2]:mb-5
-                [&_h3]:text-2xl [&_h3]:md:text-3xl [&_h3]:font-semibold [&_h3]:mt-8 [&_h3]:mb-4
+                [&_h1]:text-3xl [&_h1]:md:text-4xl [&_h1]:font-light [&_h1]:mt-12 [&_h1]:mb-6
+                [&_h2]:text-2xl [&_h2]:md:text-3xl [&_h2]:font-normal [&_h2]:mt-10 [&_h2]:mb-5
+                [&_h3]:text-xl [&_h3]:md:text-2xl [&_h3]:font-normal [&_h3]:mt-8 [&_h3]:mb-4
                 [&_p]:!m-0 
                 [&_img]:mx-auto [&_img]:my-8 [&_img]:rounded-md [&_img]:max-w-full [&_img]:h-auto
                 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6
@@ -167,7 +163,6 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
               "
               dangerouslySetInnerHTML={{ __html: cleanContent }}
             />
-
             <aside className="mt-20 border-y border-border py-8 text-center md:text-left">
               <p className="mb-3 text-xs tracking-[0.2em] text-primary">ABOUT THE AUTHOR</p>
               <p className="font-serif text-xl font-bold">{work.author || '匿名'}</p>

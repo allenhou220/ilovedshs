@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 
 export function WorkCard({ work, featured = false }: { work: any; featured?: boolean }) {
-  const targetLink = `/works/${work.id.toString()}`
+  // 💡 將原本的 work.id 改為編碼後的 work.title (若無標題則退回 work.id)
+  const targetLink = `/works/${encodeURIComponent(work.title || work.id)}`
 
   const displayImage = work.image_url || work.image
   const displayContent = work.excerpt || work.content || ''
@@ -15,7 +16,7 @@ export function WorkCard({ work, featured = false }: { work: any; featured?: boo
   return (
     <article className={`group flex flex-col gap-6 md:gap-8 ${featured ? 'md:grid md:grid-cols-2 md:items-center md:gap-16' : ''}`}>
 
-      {/* 💡 拔除背景的殘留動畫 */}
+      {/* 圖片區塊 */}
       <Link href={targetLink} className="relative block aspect-[4/3] overflow-hidden bg-muted">
         {displayImage ? (
           <img
@@ -31,7 +32,7 @@ export function WorkCard({ work, featured = false }: { work: any; featured?: boo
       </Link>
 
       <div className="flex flex-col gap-4">
-        {/* 💡 拔除所有 span 文字的殘留動畫 */}
+        {/* 分類與作者標籤 */}
         <div className="flex flex-wrap items-center gap-3 text-[10px] tracking-[0.2em] text-muted-foreground">
           {isStudent ? (
             <span className="border border-border px-2 py-1 text-muted-foreground">
@@ -47,19 +48,19 @@ export function WorkCard({ work, featured = false }: { work: any; featured?: boo
           <span className="tracking-widest text-foreground/80">{work.author || '匿名'}</span>
         </div>
 
-        {/* 💡 標題：只保留 group-hover 時的漸變，不干擾全域切換 */}
+        {/* 標題 */}
         <h3 className={`${featured ? 'text-4xl md:text-[2.75rem]' : 'text-2xl'} text-balance font-serif font-normal leading-[1.35] text-foreground transition-colors duration-500 group-hover:text-primary`}>
           <Link href={targetLink} className="block">
             {work.title}
           </Link>
         </h3>
 
-        {/* 💡 拔除內文的殘留動畫 */}
+        {/* 內文摘要 */}
         <p className="line-clamp-3 text-pretty text-sm leading-[1.8] text-muted-foreground">
           {displayContent}
         </p>
 
-        {/* 💡 按鈕 Hover 動畫保留 */}
+        {/* 閱讀全文按鈕 */}
         <Link
           href={targetLink}
           className="mt-2 inline-flex w-fit items-center gap-2 border-b border-border pb-1 text-xs font-medium tracking-[0.2em] text-muted-foreground transition-all duration-500 hover:border-foreground hover:text-foreground"
