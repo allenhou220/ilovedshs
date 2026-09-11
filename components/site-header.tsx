@@ -15,7 +15,7 @@ const links = [
 export function SiteHeader() {
   const [isOpen, setIsOpen] = useState(false)
 
-  // 💡 防鎖死滾動：當手機選單開啟時，禁止背景網頁繼續滑動
+  // 當手機選單開啟時，禁止背景網頁滾動
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -28,7 +28,7 @@ export function SiteHeader() {
   }, [isOpen])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border/40 bg-background">
       {/* 頂部 BETA 公告列 */}
       <div className="border-b border-border/30 bg-muted/20 py-2 text-center px-4">
         <p className="font-serif text-[11px] tracking-[0.18em] text-muted-foreground/80 leading-relaxed">
@@ -37,7 +37,7 @@ export function SiteHeader() {
         </p>
       </div>
 
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 md:h-20 md:px-8">
+      <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 md:h-20 md:px-8">
         
         {/* LOGO 區塊 */}
         <Link 
@@ -85,7 +85,7 @@ export function SiteHeader() {
             <ModeToggle />
           </div>
           
-          {/* 💡 手機版漢堡選單按鈕（觸控熱區加大至 44px x 44px） */}
+          {/* 手機版漢堡選單按鈕 */}
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
@@ -95,26 +95,27 @@ export function SiteHeader() {
             {isOpen ? <X className="size-6" strokeWidth={1.5} /> : <Menu className="size-6" strokeWidth={1.5} />}
           </button>
         </div>
-      </div>
 
-      {/* 💡 手機專屬抽屜選單（Full-screen Drawer） */}
-      {isOpen && (
-        <div className="fixed inset-0 top-[89px] z-50 flex flex-col bg-background/98 backdrop-blur-xl md:hidden animate-in fade-in duration-200">
-          <nav className="flex flex-col px-6 pt-4 pb-12" aria-label="行動版導覽">
-            {links.map((link) => (
-              <Link 
-                key={link.href} 
-                href={link.href} 
-                onClick={() => setIsOpen(false)}
-                className="flex min-h-[56px] items-center justify-between border-b border-border/40 font-serif text-base tracking-[0.25em] text-foreground active:bg-muted/30 transition-colors px-2"
-              >
-                <span>{link.label}</span>
-                <span className="font-mono text-xs text-muted-foreground/60">→</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
+        {/* 💡 核心修復：使用 absolute top-full 貼合 Header 底部，加上 h-[100dvh] 與純色 bg-background 防止透底 */}
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 h-[100dvh] z-50 flex flex-col bg-background border-t border-border/40 md:hidden animate-in fade-in duration-150">
+            <nav className="flex flex-col px-6 pt-4 pb-20" aria-label="行動版導覽">
+              {links.map((link) => (
+                <Link 
+                  key={link.href} 
+                  href={link.href} 
+                  onClick={() => setIsOpen(false)}
+                  className="flex min-h-[56px] items-center justify-between border-b border-border/40 font-serif text-base tracking-[0.25em] text-foreground active:bg-muted/30 transition-colors px-2"
+                >
+                  <span>{link.label}</span>
+                  <span className="font-mono text-xs text-muted-foreground/60">→</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
+
+      </div>
     </header>
   )
 }

@@ -142,7 +142,7 @@ export default async function Page() {
   <div className="mx-auto max-w-7xl border-l border-border/60">
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
       {[
-        { id: '01', zh: '散文', en: 'Essay', href: '/works?category=散文' },
+        { id: '01', zh: '散文', en: 'Prose', href: '/works?category=散文' },
         { id: '02', zh: '新詩', en: 'Poetry', href: '/works?category=新詩' },
         { id: '03', zh: '小說', en: 'Fiction', href: '/works?category=小說' },
         { id: '04', zh: '採訪', en: 'Interview', href: '/works?category=採訪' },

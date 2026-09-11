@@ -1,10 +1,36 @@
 import { sql } from "@vercel/postgres";
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+// 動態生成 LINE / IG / FB 社群分享預覽圖
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const { rows } = await sql`SELECT title, author, content, image_url FROM works WHERE id = ${id}`;
+    if (rows.length > 0) {
+      const work = rows[0];
+      const cleanDesc = (work.content || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().slice(0, 100);
+      const displayImage = work.image_url;
+      return {
+        title: work.title,
+        description: cleanDesc || `${work.author || '匿名'} 的作品`,
+        openGraph: {
+          title: `${work.title}｜東山文薈`,
+          description: cleanDesc,
+          images: displayImage ? [{ url: displayImage }] : [],
+        },
+      };
+    }
+  } catch (error) {
+    console.error("生成 Metadata 失敗:", error);
+  }
+  return { title: '作品詳情｜東山文薈' };
+}
 
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,9 +52,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
 
   const isComic = work.category === '漫畫';
   const isPoetry = work.category === '新詩';
-  const displayImage = work.image_url || work.image;
+  const displayImage = work.image_url;
 
-  // 💡 自動解析漫畫圖片網址 (若為漫畫類別)
+  // 自動解析漫畫圖片網址 (若為漫畫類別)
   const comicImages: string[] = [];
   if (isComic && work.content) {
     const imgRegex = /<img[^>]+src=["']([^"']+)["']/g;
@@ -38,14 +64,15 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     }
   }
 
-  // 💡 淨化：殺除編輯器產生的幽靈空白段落
+  // 淨化：殺除編輯器產生的幽靈空白段落
   const cleanContent = (work.content || '')
     .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
     .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')     
     .replace(/<p>\s*<\/p>/gi, '');             
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="min-h-screen bg-background text-foreground pb-[calc(6rem+env(safe-area-inset-bottom))]">
+
       <style>{`
         .custom-article-content,
         .custom-article-content * {
@@ -82,7 +109,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           </div>
         </header>
 
-        {/* 封面圖片（非漫畫類別時才顯示，避免重複） */}
+        {/* 封面圖片（非漫畫類別時才顯示） */}
         {displayImage && !isComic && (
           <div className="mx-auto max-w-5xl px-5 md:px-8 mb-12">
             <div className="relative aspect-video w-full overflow-hidden rounded-md border border-border bg-muted">
@@ -95,16 +122,9 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           </div>
         )}
 
-        {/* 💡 條件分流：漫畫條漫閱讀器 vs 一般文章閱讀區 */}
+        {/* 條件分流：漫畫條漫閱讀器 vs 一般文章閱讀區 */}
         {isComic ? (
           <section className="mx-auto max-w-3xl px-0 md:px-4">
-            <div className="mb-6 flex items-center justify-between px-5 font-mono text-xs text-muted-foreground">
-              <span className="flex items-center gap-2">
-                <BookOpen className="size-4 text-primary" /> 直條漫閱讀模式
-              </span>
-              <span>{comicImages.length > 0 ? `共 ${comicImages.length} 頁` : ''}</span>
-            </div>
-
             {/* 無縫垂直拼接圖片 */}
             <div className="flex flex-col items-center bg-black/90 p-0 md:rounded-md md:border md:border-border/40 overflow-hidden shadow-2xl">
               {comicImages.length > 0 ? (
@@ -139,10 +159,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                 [&_h1]:text-4xl [&_h1]:md:text-5xl [&_h1]:font-black [&_h1]:mt-12 [&_h1]:mb-6
                 [&_h2]:text-3xl [&_h2]:md:text-4xl [&_h2]:font-bold [&_h2]:mt-10 [&_h2]:mb-5
                 [&_h3]:text-2xl [&_h3]:md:text-3xl [&_h3]:font-semibold [&_h3]:mt-8 [&_h3]:mb-4
-                
-                /* 💡 段落外距歸零 */
                 [&_p]:!m-0 
-                
                 [&_img]:mx-auto [&_img]:my-8 [&_img]:rounded-md [&_img]:max-w-full [&_img]:h-auto
                 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6
                 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4
