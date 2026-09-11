@@ -99,3 +99,22 @@
   animation-duration: 400ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* ===== 手機端體驗優化 ===== */
+
+/* 1. 防止手機螢幕過窄時，長單字撐破畫面產生橫向滾動條 */
+html, body {
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent; /* 移除手機點擊連結時的醜陋藍色閃爍框 */
+}
+
+/* 2. 針對手機端，強制表單元件字體為 16px，防止 iOS 自動放大畫面 */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* 3. 讓手機端滾動更平滑 (慣性滾動) */
+.scroll-smooth {
+  -webkit-overflow-scrolling: touch;
+}
