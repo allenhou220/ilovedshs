@@ -1,20 +1,17 @@
 import { sql } from "@vercel/postgres";
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// 💡 1. 這裡的 id 現在其實接到的會是「文章標題」
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  // 將網址編碼轉換回原本的中文字
   const decodedTitle = decodeURIComponent(id); 
   
   try {
-    // 💡 改用 title 去資料庫搜尋
     const { rows } = await sql`SELECT title, author, content, image_url FROM works WHERE title = ${decodedTitle}`;
     if (rows.length > 0) {
       const work = rows[0];
@@ -38,16 +35,34 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  // 將網址編碼轉換回原本的中文字
   const decodedTitle = decodeURIComponent(id);
 
   let work = null;
+  let prevWork = null;
+  let nextWork = null;
 
   try {
-    // 💡 2. 改用 title 去資料庫搜尋對應的文章
+    // 1. 讀取當前文章內容
     const { rows } = await sql`SELECT * FROM works WHERE title = ${decodedTitle}`;
     if (rows.length > 0) {
       work = rows[0];
+    }
+
+    // 2. 💡 撈取所有作品標題，並使用與總覽頁一模一樣的排序規則
+    const { rows: allWorks } = await sql`
+      SELECT title FROM works 
+      ORDER BY sort_order ASC NULLS LAST, id DESC
+    `;
+    
+    // 3. 計算當前文章的前後關係
+    if (work && allWorks.length > 0) {
+      const currentIndex = allWorks.findIndex(w => w.title === work.title);
+      if (currentIndex > 0) {
+        prevWork = allWorks[currentIndex - 1]; // 上一篇
+      }
+      if (currentIndex < allWorks.length - 1) {
+        nextWork = allWorks[currentIndex + 1]; // 下一篇
+      }
     }
   } catch (error) {
     console.error("讀取文章詳細失敗:", error);
@@ -171,14 +186,52 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         )}
       </article>
 
-      <div className="border-t border-border py-12 text-center mt-16">
-        <Link
-          href="/works"
-          className="inline-block border border-border px-8 py-3 text-sm font-serif rounded-sm transition-colors hover:bg-muted"
-        >
-          返回所有作品列表
-        </Link>
-      </div>
+      {/* 💡 上一篇 / 下一篇 / 返回列表 底部導覽列 */}
+      <nav className="mx-auto max-w-5xl px-5 md:px-8 mt-16">
+        <div className="flex flex-col items-center justify-between gap-10 border-t border-border pt-12 md:flex-row md:gap-4">
+          
+          {/* 上一篇 */}
+          <div className="w-full flex-1 md:text-left text-center">
+            {prevWork && (
+              <Link href={`/works/${encodeURIComponent(prevWork.title)}`} className="group block">
+                <p className="mb-2 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors group-hover:text-primary">
+                  Previous
+                </p>
+                <p className="font-serif text-lg text-foreground transition-colors group-hover:text-primary line-clamp-1">
+                  <ArrowLeft className="inline-block size-4 mr-2 mb-0.5 transition-transform group-hover:-translate-x-1" />
+                  {prevWork.title}
+                </p>
+              </Link>
+            )}
+          </div>
+
+          {/* 返回列表 */}
+          <div className="shrink-0">
+            <Link
+              href="/works"
+              className="inline-block border border-border px-8 py-3 text-sm font-serif rounded-sm transition-colors hover:bg-muted"
+            >
+              返回所有作品列表
+            </Link>
+          </div>
+
+          {/* 下一篇 */}
+          <div className="w-full flex-1 md:text-right text-center">
+            {nextWork && (
+              <Link href={`/works/${encodeURIComponent(nextWork.title)}`} className="group block">
+                <p className="mb-2 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors group-hover:text-primary">
+                  Next
+                </p>
+                <p className="font-serif text-lg text-foreground transition-colors group-hover:text-primary line-clamp-1">
+                  {nextWork.title}
+                  <ArrowRight className="inline-block size-4 ml-2 mb-0.5 transition-transform group-hover:translate-x-1" />
+                </p>
+              </Link>
+            )}
+          </div>
+          
+        </div>
+      </nav>
     </main>
   );
 }
