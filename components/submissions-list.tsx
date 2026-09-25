@@ -1,132 +1,240 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { Search, Trash2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { deleteSubmissionAction } from "@/lib/actions";
+import { Trash2, Search, Download, CheckSquare, Square, X } from "lucide-react";
 
-// 💡 1. 接收從外層 page.tsx 傳進來的 onDelete (Server Action)
-function formatDate(dateString: string) {
-  if (!dateString) return "";
-  const d = new Date(dateString);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${year}/${month}/${day} ${hours}:${minutes}`;
+interface SubmissionsListProps {
+  submissions: any[];
+  isAdmin?: boolean;
 }
 
 export default function SubmissionsList({ 
-  submissions,
-  onDelete 
-}: { 
-  submissions: any[];
-  onDelete?: (id: number | string) => Promise<void>; 
-}) {
-  const [search, setSearch] = useState("");
-  const [deletingId, setDeletingId] = useState<number | string | null>(null);
+  submissions, 
+  isAdmin = false 
+}: SubmissionsListProps) {
+  const [isExportMode, setIsExportMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  const filtered = submissions.filter((sub) => {
-    const q = search.toLowerCase().trim();
-    if (!q) return true;
-
-    const title = (sub.title || "").toLowerCase();
-    const author = (sub.author_name || "").toLowerCase();
-    const email = (sub.email || "").toLowerCase();
-    const studentClass = (sub.class || "").toLowerCase();
-    const seat = String(sub.seat_number || "");
-
+  const filteredSubmissions = submissions.filter((sub) => {
+    const term = searchTerm.toLowerCase();
     return (
-      title.includes(q) ||
-      author.includes(q) ||
-      email.includes(q) ||
-      studentClass.includes(q) ||
-      seat.includes(q)
+      (sub.title || "").toLowerCase().includes(term) ||
+      (sub.author_name || sub.author || "").toLowerCase().includes(term) ||
+      (sub.email || "").toLowerCase().includes(term) ||
+      (sub.class || "").toLowerCase().includes(term)
     );
   });
 
-  const handleDelete = async (id: number | string) => {
-    if (!confirm('確定要刪除這篇投稿嗎？此動作無法復原。')) return;
-    
-    setDeletingId(id);
-    try {
-      if (onDelete) {
-        await onDelete(id);
-      }
-    } catch (err) {
-      alert("刪除失敗，請稍後再試。");
-      console.error(err);
-    } finally {
-      setDeletingId(null);
+  const handleStartExportMode = () => {
+    setIsExportMode(true);
+    setSelectedIds([]);
+  };
+
+  const handleCancelExportMode = () => {
+    setIsExportMode(false);
+    setSelectedIds([]);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredSubmissions.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredSubmissions.map((s) => s.id));
     }
   };
 
-  return (
-    <div>
-      <div className="mb-8 relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717a]" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="搜尋標題、作者姓名、信箱、班級或座號..."
-          className="w-full rounded-md border border-[#27272a] bg-[#121212] py-2 pl-10 pr-4 text-sm text-white placeholder-[#71717a] focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-        />
-      </div>
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
-      {filtered.length === 0 ? (
-        <div className="flex h-64 flex-col items-center justify-center rounded-md border border-[#27272a] bg-[#121212]">
-          <p className="text-lg text-[#71717a]">
-            {search ? "找不到符合搜尋條件的稿件喔！" : "目前信箱空空的，沒有待審核的稿件喔！"}
+  const handleDelete = (id: number) => {
+    if (confirm("確定要徹底從資料庫刪除此稿件嗎？此動作無法復原！")) {
+      startTransition(async () => {
+        await deleteSubmissionAction(id);
+        setSelectedIds((prev) => prev.filter((item) => item !== id));
+      });
+    }
+  };
+
+  const handleConfirmExport = () => {
+    if (selectedIds.length === 0) {
+      alert("請先勾選至少一篇要匯出的文章！");
+      return;
+    }
+    const url = `/api/export-submissions-word?ids=${selectedIds.join(",")}`;
+    window.location.href = url;
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* 頁面標題與右上方唯一匯出控制區 */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-border/60 pb-8 gap-6">
+        <div>
+          <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
+            SUBMISSIONS / 投稿審核
+          </p>
+          <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl text-foreground">
+            待審核稿件
+          </h1>
+          <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
+            這裡列出了所有學生透過前台表單投遞，且尚未發布的作品。
           </p>
         </div>
+
+        <div className="flex flex-col sm:items-end gap-3">
+          <div className="flex items-baseline mb-1">
+            <span className="font-serif text-4xl sm:text-5xl font-light text-primary">
+              {submissions.length}
+            </span>
+            <span className="ml-2 font-serif text-xs tracking-wider text-muted-foreground">
+              篇待審核
+            </span>
+          </div>
+
+          {/* 僅限總管理員（isAdmin）顯示右上角控制按鈕 */}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              {!isExportMode ? (
+                <button
+                  onClick={handleStartExportMode}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-serif text-xs tracking-wider rounded-md hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <Download size={14} />
+                  匯出
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleCancelExportMode}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-muted text-muted-foreground hover:text-foreground font-serif text-xs rounded-md transition-colors"
+                  >
+                    <X size={14} />
+                    取消
+                  </button>
+                  <button
+                    onClick={handleConfirmExport}
+                    disabled={selectedIds.length === 0}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-serif text-xs tracking-wider rounded-md hover:bg-primary/90 disabled:opacity-40 transition-colors shadow-sm"
+                  >
+                    <Download size={14} />
+                    確認匯出 ({selectedIds.length})
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* 搜尋列與全選開關 */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-card p-4 rounded-xl border border-border/80">
+        <div className="relative w-full sm:w-80">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="搜尋標題、作者、信箱..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-background border border-border/80 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+
+        {/* 匯出模式下僅保留「全選」按鈕 */}
+        {isAdmin && isExportMode && (
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <button
+              onClick={handleSelectAll}
+              className="inline-flex items-center gap-2 text-xs font-serif text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {selectedIds.length === filteredSubmissions.length && filteredSubmissions.length > 0 ? (
+                <CheckSquare size={16} className="text-primary" />
+              ) : (
+                <Square size={16} />
+              )}
+              全選 ({selectedIds.length}/{filteredSubmissions.length})
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 稿件列表 */}
+      {filteredSubmissions.length === 0 ? (
+        <div className="text-center py-16 border border-dashed border-border/60 rounded-xl">
+          <p className="font-serif text-sm text-muted-foreground">目前尚無符合條件的投稿稿件。</p>
+        </div>
       ) : (
-        <div className="grid gap-4">
-          {filtered.map((sub) => {
+        <div className="space-y-4">
+          {filteredSubmissions.map((item) => {
+            const isSelected = selectedIds.includes(item.id);
+            const date = item.created_at ? new Date(item.created_at).toLocaleDateString("zh-TW") : "";
+            const author = item.author_name || item.author || "匿名";
+            const classInfo = item.class ? `${item.class} ${item.seat_number || ""}號` : "未提供";
+
             return (
               <div
-                key={sub.id}
-                className="flex flex-col justify-between gap-6 rounded-md border border-[#27272a] bg-[#121212] p-6 transition-colors hover:border-[#3f3f46] md:flex-row md:items-center"
+                key={item.id}
+                onClick={() => isExportMode && handleToggleSelect(item.id)}
+                className={`p-5 rounded-xl border transition-all ${
+                  isExportMode ? "cursor-pointer" : ""
+                } ${
+                  isExportMode && isSelected
+                    ? "bg-primary/5 border-primary/50 shadow-sm"
+                    : "bg-card border-border/70 hover:border-border"
+                }`}
               >
-                <div>
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="rounded-sm bg-[#27272a] px-2 py-1 text-xs tracking-widest text-[#a1a1aa]">
-                      {sub.category}
-                    </span>
-                    <span className="text-xs text-[#71717a]">{formatDate(sub.created_at)} 投稿</span>
+                <div className="flex items-start gap-4">
+                  {/* 點擊匯出後顯示的勾選框 */}
+                  {isAdmin && isExportMode && (
+                    <div className="mt-1 text-muted-foreground shrink-0">
+                      {isSelected ? (
+                        <CheckSquare size={20} className="text-primary" />
+                      ) : (
+                        <Square size={20} />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                      <span className="px-2 py-0.5 bg-muted rounded text-[11px] font-medium">
+                        {item.category || "散文"}
+                      </span>
+                      <span>投稿時間：{date}</span>
+                      {item.is_anonymous && (
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">
+                          (要求匿名)
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-lg font-serif font-semibold text-foreground truncate">
+                      {item.title || "無標題"}
+                    </h3>
+
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <b>作者：</b>{author} ｜ <b>班級座號：</b>{classInfo} ｜ <b>信箱：</b>{item.email}
+                    </p>
+
+                    <div className="mt-3 text-sm text-foreground/80 font-serif line-clamp-2 bg-muted/30 p-3 rounded-md border border-border/40">
+                      {item.content?.replace(/<[^>]*>/g, "") || "（無內文）"}
+                    </div>
                   </div>
 
-                  <h2 className="mb-2 font-serif text-xl font-bold text-white">
-                    {sub.title}
-                  </h2>
-
-                  <div className="flex items-center gap-2 text-sm text-[#a1a1aa]">
-                    <span className="text-primary">{sub.class} {sub.seat_number}號</span>
-                    <span>・</span>
-                    <span className="font-medium text-white">{sub.author_name}</span>
-                    <span>・</span>
-                    <span className="text-xs">{sub.email}</span>
+                  <div className="flex flex-col gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400 text-xs rounded-md transition-colors"
+                    >
+                      <Trash2 size={14} />
+                      刪除
+                    </button>
                   </div>
-                </div>
-
-                <div className="shrink-0 flex flex-col md:flex-row items-center gap-3">
-                  {/* 💡 2. 刪除按鈕 */}
-                  <button
-                    type="button"
-                    disabled={deletingId === sub.id}
-                    onClick={() => handleDelete(sub.id)}
-                    className="inline-flex items-center gap-1.5 rounded-sm border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 hover:bg-red-500/20 active:opacity-70 disabled:opacity-50 transition-colors"
-                  >
-                    <Trash2 className="size-4" />
-                    {deletingId === sub.id ? '刪除中...' : '刪除稿件'}
-                  </button>
-
-                  <Link
-                    href={`/admin/submissions/${sub.id}`}
-                    className="inline-block rounded-sm bg-white px-6 py-3 text-sm font-bold text-black transition-colors hover:bg-gray-200"
-                  >
-                    進入審核 👉
-                  </Link>
                 </div>
               </div>
             );

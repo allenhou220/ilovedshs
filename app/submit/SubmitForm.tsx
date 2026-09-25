@@ -163,17 +163,17 @@ export default function SubmitForm() {
         </div>
       </div>
 
-      {/* 3. 內文編輯器 (保留原本的 Dynamic SubmitEditor 與連動 state) */}
+      {/* 3. 內文編輯器 */}
       <input type="hidden" name="content" value={editorContent} />
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">作品內文</label>
         <SubmitEditor onChange={setEditorContent} />
         <p className="text-xs text-muted-foreground mt-1">
-          提示：輸入 &apos;/&apos; 可以叫出格式選單，支援標題、粗體與條列式排版。
+          提示：圈選文字即可切換標題大小、套用粗體、斜體與底線。
         </p>
       </div>
 
-      {/* 🍯 防機器人誘餌欄位 (Honeypot) - 放回 Form 內部 */}
+      {/* 🍯 防機器人誘餌欄位 (Honeypot) */}
       <div className="hidden" aria-hidden="true" style={{ display: "none" }}>
         <input type="text" name="website_hp" tabIndex={-1} autoComplete="off" />
       </div>

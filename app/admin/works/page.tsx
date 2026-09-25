@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AdminList } from "@/components/admin-list";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -22,64 +22,48 @@ export default async function AdminWorksPage() {
   `;
 
   return (
-    <div
-      style={{
-        padding: "40px",
-        background: "#121212",
-        color: "#fff",
-        minHeight: "100vh",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+    <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">
+      <div className="max-w-6xl mx-auto">
         
-        {/* 返回大廳的連結 */}
-        <div style={{ marginBottom: "20px" }}>
-          <Link href="/admin" style={{ color: "#888", textDecoration: "none", display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
-            <ArrowLeft size={16} /> 返回管理大廳
+        {/* 返回管理大廳 */}
+        <div className="mb-8">
+          <Link 
+            href="/admin" 
+            className="inline-flex items-center gap-2 font-serif text-xs tracking-widest text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft size={15} /> 返回管理大廳
           </Link>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "24px",
-            flexWrap: "wrap",
-            gap: "20px"
-          }}
-        >
+        {/* 頁面標題與新增按鈕 */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border/60 pb-8 mb-10 gap-6">
           <div>
-            <h1 style={{ fontSize: "24px", marginBottom: "8px", fontWeight: "bold" }}>文章管理</h1>
-            <p style={{ color: "#888", fontSize: "14px" }}>管理所有已發布的文章</p>
+            <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
+              WORKS MANAGEMENT / 文章管理
+            </p>
+            <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl text-foreground">
+              已發布文章列表
+            </h1>
+            <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
+              檢視與調整所有文章的精選狀態、發布順序或編輯內容。
+            </p>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div>
             <Link
               href="/admin/new"
-              style={{
-                width: "128px",
-                height: "40px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "#2563eb",
-                color: "#fff",
-                borderRadius: "4px",
-                fontSize: "14px",
-                textDecoration: "none",
-                fontWeight: "bold",
-                boxSizing: "border-box",
-              }}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-serif text-xs tracking-wider rounded-md hover:bg-primary/90 transition-colors shadow-sm"
             >
-              ＋ 新增文章
+              <Plus size={15} /> 新增文章
             </Link>
           </div>
-        </div>
+        </header>
 
-        <AdminList works={works as any} />
+        {/* 文章列表區塊 */}
+        <section>
+          <AdminList works={works as any} />
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

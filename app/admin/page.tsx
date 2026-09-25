@@ -17,25 +17,38 @@ export default async function AdminDashboard() {
   const isSubmissionOpen = await getSubmissionStatus();
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white py-12 px-5 font-sans">
-      <div className="max-w-5xl mx-auto">
+    <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">
+      <div className="max-w-6xl mx-auto">
         
         {/* 頂部 Header：歡迎詞與帳號相關操作 */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-gray-700 pb-6 mb-10 gap-6">
+        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border/60 pb-8 mb-12 gap-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">後台管理大廳</h1>
-            <p className="text-gray-400 text-sm">歡迎回來，請選擇您要執行的管理項目</p>
+            <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
+              EDITORIAL DESK / 編輯工作檯
+            </p>
+            <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl md:text-5xl text-foreground">
+              後台管理大廳
+            </h1>
+            <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
+              歡迎回來，請選擇您要執行的刊物管理項目。
+            </p>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
-            <Link href="/admin/account" className="flex items-center gap-2 px-4 py-2 bg-transparent border border-gray-600 rounded text-sm hover:bg-gray-800 transition">
-              <User size={16} /> 我的帳號
+            <Link 
+              href="/admin/account" 
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border/80 rounded-md font-serif text-xs tracking-wider text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+            >
+              <User size={15} /> 我的帳號
             </Link>
             
             {isAdmin && (
               <>
-                <Link href="/admin/users" className="flex items-center gap-2 px-4 py-2 bg-transparent border border-gray-600 rounded text-sm hover:bg-gray-800 transition">
-                  <Users size={16} /> 帳號管理
+                <Link 
+                  href="/admin/users" 
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border/80 rounded-md font-serif text-xs tracking-wider text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+                >
+                  <Users size={15} /> 帳號管理
                 </Link>
 
                 {/* 💡 總管理員專屬：開放/停用投稿開關按鈕 */}
@@ -45,10 +58,10 @@ export default async function AdminDashboard() {
                 }} className="m-0">
                   <button 
                     type="submit" 
-                    className={`flex items-center gap-2 px-4 py-2 bg-transparent border rounded text-sm transition-colors ${
+                    className={`inline-flex items-center gap-2 px-4 py-2 border rounded-md font-serif text-xs tracking-wider transition-colors ${
                       isSubmissionOpen 
-                        ? 'border-red-500/50 text-red-400 hover:bg-red-950/40 hover:border-red-500' 
-                        : 'border-green-500/50 text-green-400 hover:bg-green-950/40 hover:border-green-500'
+                        ? 'border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive' 
+                        : 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500'
                     }`}
                   >
                     {isSubmissionOpen ? "🔴 停用前台投稿" : "🟢 開放前台投稿"}
@@ -58,75 +71,105 @@ export default async function AdminDashboard() {
             )}
 
             <form action="/api/auth/signout" method="POST" className="m-0">
-              <button type="submit" className="flex items-center gap-2 px-4 py-2 bg-red-600 rounded text-sm font-medium hover:bg-red-700 transition">
-                <LogOut size={16} /> 登出
+              <button 
+                type="submit" 
+                className="inline-flex items-center gap-2 px-4 py-2 border border-destructive/50 bg-destructive/10 text-destructive rounded-md font-serif text-xs tracking-wider hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              >
+                <LogOut size={15} /> 登出
               </button>
             </form>
           </div>
-        </div>
+        </header>
         
         {/* 三個核心功能大按鈕 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
           {/* 1. 文章上架與管理 */}
           <Link 
             href="/admin/works" 
-            className="group flex flex-col items-center text-center p-8 bg-[#1e1e1e] border-2 border-transparent rounded-xl hover:border-blue-500 hover:bg-[#252525] transition-all duration-300"
+            className="group relative flex flex-col justify-between p-8 rounded-lg border border-border/70 bg-card/40 hover:bg-card hover:border-primary/50 transition-all duration-500 hover:-translate-y-1 shadow-sm hover:shadow-md"
           >
-            <div className="bg-blue-500/10 p-5 rounded-full mb-6 group-hover:scale-110 group-hover:bg-blue-500 transition-all duration-300 text-blue-500 group-hover:text-white">
-              <FileText size={40} />
+            <div>
+              <div className="mb-6 inline-flex p-4 rounded-full bg-primary/10 text-primary transition-transform duration-500 group-hover:scale-110">
+                <FileText size={28} />
+              </div>
+              <h2 className="font-serif text-2xl font-light tracking-wide text-foreground mb-3 group-hover:text-primary transition-colors">
+                文章上架管理
+              </h2>
+              <p className="font-serif text-sm leading-[1.8] text-muted-foreground font-light">
+                新增、編輯、刪除正式發布的文章，設定排序與首頁精選。
+              </p>
             </div>
-            <h2 className="text-xl font-bold mb-3">文章上架管理</h2>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              新增、編輯、刪除正式發布的文章，設定排序與首頁精選。
-            </p>
+            <span className="mt-8 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 group-hover:text-primary transition-colors">
+              MANAGE WORKS &rarr;
+            </span>
           </Link>
 
-          {/* 2. 學生投稿審核 (💡 依照開關狀態切換樣式與可點擊性) */}
+          {/* 2. 學生投稿審核 (💡 依據開關狀態動態呈現) */}
           {isSubmissionOpen ? (
             <Link 
               href="/admin/submissions" 
-              className="group flex flex-col items-center text-center p-8 bg-[#1e1e1e] border-2 border-transparent rounded-xl hover:border-amber-500 hover:bg-[#252525] transition-all duration-300"
+              className="group relative flex flex-col justify-between p-8 rounded-lg border border-border/70 bg-card/40 hover:bg-card hover:border-amber-500/50 transition-all duration-500 hover:-translate-y-1 shadow-sm hover:shadow-md"
             >
-              <div className="bg-amber-500/10 p-5 rounded-full mb-6 group-hover:scale-110 group-hover:bg-amber-500 transition-all duration-300 text-amber-500 group-hover:text-white">
-                <Inbox size={40} />
+              <div>
+                <div className="mb-6 inline-flex p-4 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-transform duration-500 group-hover:scale-110">
+                  <Inbox size={28} />
+                </div>
+                <h2 className="font-serif text-2xl font-light tracking-wide text-foreground mb-3 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                  學生投稿審核
+                </h2>
+                <p className="font-serif text-sm leading-[1.8] text-muted-foreground font-light">
+                  檢視學生投遞的稿件，審核通過後可一鍵將優良作品發布。
+                </p>
               </div>
-              <h2 className="text-xl font-bold mb-3">學生投稿審核</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                檢視學生投遞的稿件，審核通過後可一鍵將優良作品發布。
-              </p>
+              <span className="mt-8 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                REVIEW SUBMISSIONS &rarr;
+              </span>
             </Link>
           ) : (
-            <div className="flex flex-col items-center text-center p-8 bg-[#18181b]/50 border-2 border-[#27272a]/50 rounded-xl opacity-60 grayscale cursor-not-allowed transition-all">
-              <div className="bg-gray-500/10 p-5 rounded-full mb-6 text-gray-500">
-                <Inbox size={40} />
+            <div className="relative flex flex-col justify-between p-8 rounded-lg border border-border/40 bg-muted/20 opacity-60 cursor-not-allowed">
+              <div>
+                <div className="mb-6 inline-flex p-4 rounded-full bg-muted text-muted-foreground">
+                  <Inbox size={28} />
+                </div>
+                <h2 className="font-serif text-2xl font-light tracking-wide text-muted-foreground mb-3">
+                  學生投稿審核
+                </h2>
+                <p className="font-serif text-sm leading-[1.8] text-muted-foreground/70 font-light mb-4">
+                  檢視學生投遞的稿件，審核通過後可一鍵將優良作品發布。
+                </p>
               </div>
-              <h2 className="text-xl font-bold mb-3">學生投稿審核</h2>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                檢視學生投遞的稿件，審核通過後可一鍵將優良作品發布。
-              </p>
-              <span className="text-red-400 font-bold text-xs bg-red-500/10 px-3 py-1.5 rounded-sm tracking-wider">
-                目前已停用投稿
-              </span>
+              <div>
+                <span className="inline-block border border-destructive/30 text-destructive font-serif text-xs px-3 py-1 rounded tracking-widest bg-destructive/5">
+                  目前已停用投稿
+                </span>
+              </div>
             </div>
           )}
 
-          {/* 3. 首頁標題編輯 */}
+          {/* 3. 首頁外觀設定 */}
           <Link 
             href="/admin/homepage" 
-            className="group flex flex-col items-center text-center p-8 bg-[#1e1e1e] border-2 border-transparent rounded-xl hover:border-[#8c4033] hover:bg-[#252525] transition-all duration-300"
+            className="group relative flex flex-col justify-between p-8 rounded-lg border border-border/70 bg-card/40 hover:bg-card hover:border-primary/50 transition-all duration-500 hover:-translate-y-1 shadow-sm hover:shadow-md"
           >
-            <div className="bg-[#8c4033]/10 p-5 rounded-full mb-6 group-hover:scale-110 group-hover:bg-[#8c4033] transition-all duration-300 text-[#8c4033] group-hover:text-white">
-              <LayoutTemplate size={40} />
+            <div>
+              <div className="mb-6 inline-flex p-4 rounded-full bg-primary/10 text-primary transition-transform duration-500 group-hover:scale-110">
+                <LayoutTemplate size={28} />
+              </div>
+              <h2 className="font-serif text-2xl font-light tracking-wide text-foreground mb-3 group-hover:text-primary transition-colors">
+                首頁外觀設定
+              </h2>
+              <p className="font-serif text-sm leading-[1.8] text-muted-foreground font-light">
+                修改首頁大標題、引言文字，以及更換首頁的主題封面圖片。
+              </p>
             </div>
-            <h2 className="text-xl font-bold mb-3">首頁外觀設定</h2>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              修改首頁大標題、引言文字，以及更換首頁的主題封面圖片。
-            </p>
+            <span className="mt-8 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 group-hover:text-primary transition-colors">
+              HOMEPAGE SETTINGS &rarr;
+            </span>
           </Link>
 
         </div>
       </div>
-    </div>
+    </main>
   );
 }

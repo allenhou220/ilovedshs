@@ -7,27 +7,8 @@ import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
-import { createClient } from "redis";
-import { headers } from "next/headers";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_to_pass_build");
-
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-  console.error("❌ 警告：未找到 REDIS_URL 環境變數，請檢查 .env.local");
-}
-
-const redisClient = createClient({ url: redisUrl });
-redisClient.on("error", (err) => console.error("Redis 連線錯誤:", err));
-
-let isConnected = false;
-async function connectRedis() {
-  if (!isConnected) {
-    await redisClient.connect();
-    isConnected = true;
-  }
-  return redisClient;
-}
 
 async function requireSession() {
   const session = await getServerSession(authOptions);
@@ -299,25 +280,6 @@ export async function submitStudentWorkAction(formData: FormData) {
   const honeypot = String(formData.get("website_hp") || "");
   if (honeypot) return;
 
-  try {
-    const headerList = await headers();
-    const ip = headerList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
-    const client = await connectRedis();
-    const key = `submit_${ip}`;
-    const count = await client.incr(key);
-
-    if (count === 1) {
-      await client.expire(key, 600);
-    }
-
-    if (count > 3) {
-      throw new Error("投稿頻率過高，請 10 分鐘後再試！");
-    }
-  } catch (error: any) {
-    if (error.message?.includes("投稿頻率過高")) throw error;
-    console.error("Rate limit 檢查異常:", error);
-  }
-
   const studentClass = String(formData.get("class") || "").trim();
   const rawSeat = formData.get("seatNumber") || formData.get("seat_number");
   const parsedSeat = parseInt(String(rawSeat || "0"), 10);
@@ -339,6 +301,22 @@ export async function submitStudentWorkAction(formData: FormData) {
     throw new Error("必須使用學校核發的 @stu.tshs.tp.edu.tw 信箱");
   }
 
+  // 💡 替代 Redis：直接由 Postgres 檢查該 Email 於 10 分鐘內的投稿次數
+  try {
+    const { rows: recentCheck } = await sql`
+      SELECT COUNT(*) as count FROM submissions 
+      WHERE email = ${email} 
+      AND created_at > NOW() - INTERVAL '10 minutes'
+    `;
+    
+    if (Number(recentCheck[0]?.count || 0) >= 3) {
+      throw new Error("投稿頻率過高，請 10 分鐘後再試！");
+    }
+  } catch (error: any) {
+    if (error.message?.includes("投稿頻率過高")) throw error;
+    console.error("Postgres 限流檢查異常:", error);
+  }
+
   let imageUrl = "";
   if (imageFile && imageFile.size > 0) {
     const uniqueFilename = `submissions/${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
@@ -354,7 +332,6 @@ export async function submitStudentWorkAction(formData: FormData) {
     VALUES (${studentClass}, ${seatNumber}, ${authorName}, ${email}, ${category}, ${title}, ${content}, ${imageUrl}, 'pending', ${isAnonymous})
   `;
 
-  // 💡 寄信通知邏輯：直接向資料庫查詢開啟通知的使用者
   try {
     await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
     
@@ -434,6 +411,21 @@ export async function publishSubmissionAction(submissionId: string, formData: Fo
   revalidatePath("/works");
   revalidatePath("/");
   redirect("/admin/submissions");
+}
+
+export async function deleteSubmissionAction(id: number) {
+  await requireSession();
+
+  try {
+    await sql`DELETE FROM submissions WHERE id = ${id}`;
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/submissions");
+    return { success: true };
+  } catch (error) {
+    console.error("刪除投稿失敗:", error);
+    throw new Error("無法從資料庫抹除該投稿");
+  }
 }
 
 // ===== 首頁外觀與網站設定 =====
