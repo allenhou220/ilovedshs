@@ -1,47 +1,23 @@
 export default function GlobalLoading() {
   return (
-    <div className="flex min-h-[70vh] w-full items-center justify-center bg-background">
-      {/* 💡 注入專屬的文學風呼吸與延伸動畫 */}
+    <div className="flex min-h-[70vh] w-full items-center justify-center bg-background" role="status" aria-live="polite">
       <style>{`
-        @keyframes blurFade {
-          0% { opacity: 0.3; filter: blur(2px); transform: translateY(2px); }
-          50% { opacity: 1; filter: blur(0px); transform: translateY(0px); }
-          100% { opacity: 0.3; filter: blur(2px); transform: translateY(2px); }
-        }
-        @keyframes lineExpand {
-          0% { width: 0%; opacity: 0; }
-          50% { width: 60px; opacity: 1; }
-          100% { width: 0%; opacity: 0; }
-        }
-        .animate-blur-fade {
-          animation: blurFade 3s ease-in-out infinite;
-        }
-        .animate-line-expand {
-          animation: lineExpand 3s ease-in-out infinite;
-        }
-        .dot-1 { animation: blurFade 1.5s infinite; animation-delay: 0s; }
-        .dot-2 { animation: blurFade 1.5s infinite; animation-delay: 0.2s; }
-        .dot-3 { animation: blurFade 1.5s infinite; animation-delay: 0.4s; }
+        @keyframes wh-ink { 0%,100% { opacity: .15 } 50% { opacity: 1 } }
+        .wh-ink > span { animation: wh-ink 1.6s ease-in-out infinite; }
+        .wh-ink > span:nth-child(2) { animation-delay: .2s }
+        .wh-ink > span:nth-child(3) { animation-delay: .4s }
+        .wh-ink > span:nth-child(4) { animation-delay: .6s }
+        @media (prefers-reduced-motion: reduce) { .wh-ink > span { animation: none; opacity: 1 } }
       `}</style>
-      
-      <div className="flex flex-col items-center gap-6">
-        {/* 1. 品牌字體（柔焦呼吸效果） */}
-        <span className="font-serif text-2xl tracking-[0.4em] text-foreground pl-[0.4em] animate-blur-fade">
-          東山文薈
-        </span>
-        
-        {/* 2. 動態伸縮裝飾線 */}
-        <div className="h-[1px] bg-foreground/40 animate-line-expand" />
-        
-        {/* 3. 載入中字樣與漣漪點點 */}
-        <span className="flex items-center font-serif text-xs tracking-[0.2em] text-muted-foreground">
-          載入中
-          <span className="flex ml-1 tracking-normal">
-            <span className="dot-1">.</span>
-            <span className="dot-2">.</span>
-            <span className="dot-3">.</span>
-          </span>
-        </span>
+      <div className="flex flex-col items-center gap-5">
+        <div className="wh-ink flex border-y border-l border-grid">
+          {['東', '山', '文', '薈'].map((c) => (
+            <span key={c} className="flex size-12 items-center justify-center border-r border-grid font-serif text-2xl font-bold">
+              {c}
+            </span>
+          ))}
+        </div>
+        <span className="font-serif text-xs tracking-[0.15em] text-muted-foreground">載入中</span>
       </div>
     </div>
   )

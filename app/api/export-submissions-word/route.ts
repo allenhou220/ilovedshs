@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import JSZip from "jszip";
+import { sanitizeHtml, escapeHtml } from "@/lib/sanitize-html";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +59,7 @@ export async function GET(request: NextRequest) {
       const category = row.category || '未分類';
       const title = row.title || '無標題';
 
-      let cleanContent = (row.content || '<p>（無內容）</p>')
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/\s*on\w+=\s*["'][^"']*["']/gi, '')
+      let cleanContent = sanitizeHtml(row.content || '<p>（無內容）</p>')
         .replace(/<img([^>]*)>/gi, (match: string, p1: string) => {
           return `<img ${p1} style="max-width: 100%; height: auto; display: block; margin: 12pt auto;" />`;
         });
@@ -69,7 +68,7 @@ export async function GET(request: NextRequest) {
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head>
           <meta charset='utf-8'>
-          <title>${title}</title>
+          <title>${escapeHtml(title)}</title>
           <style>
             @page {
               size: A4;
@@ -82,12 +81,12 @@ export async function GET(request: NextRequest) {
         </head>
         <body>
           <div style="text-align: center; margin-bottom: 20pt;">
-            <p style="font-size: 10pt; color: #666; margin-bottom: 4pt;">${category} ｜ 投稿時間：${date}</p>
+            <p style="font-size: 10pt; color: #666; margin-bottom: 4pt;">${escapeHtml(category)} ｜ 投稿時間：${date}</p>
             <h1 style="font-size: 20pt; font-family: 'PMingLiU', 'Noto Serif TC', serif; margin: 0 0 8pt 0; font-weight: bold;">
-              ${title}
+              ${escapeHtml(title)}
             </h1>
             <p style="font-size: 11pt; color: #333; margin: 0;">
-              <b>作者：</b>${author} ｜ <b>班級座號：</b>${classInfo}
+              <b>作者：</b>${escapeHtml(author)} ｜ <b>班級座號：</b>${escapeHtml(classInfo)}
             </p>
           </div>
           <hr style="border: none; border-top: 1px solid #ccc; margin-bottom: 20pt;" />

@@ -1,10 +1,17 @@
-import { getSiteSettings, updateSiteSettingsAction } from "@/lib/actions";
+import { updateSiteSettingsAction } from "@/lib/actions";
+import { getSiteSettings } from "@/lib/queries";
 import Link from "next/link";
-import { ArrowLeft, Upload, Image as ImageIcon } from "lucide-react";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { ArrowLeft, Image as ImageIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomepageSettings() {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/");
+
   // 從資料庫取得目前的設定值
   const settings = await getSiteSettings();
 
@@ -111,7 +118,22 @@ export default async function HomepageSettings() {
             />
           </div>
 
-          {/* 5. 封面圖片上傳與預覽 */}
+          {/* 5. 截稿日期（投稿頁顯示；過期後自動隱藏） */}
+          <div>
+            <label htmlFor="submissionDeadline" className="block font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2.5">
+              本期截稿日期（顯示在投稿頁，可留空）
+            </label>
+            <input
+              id="submissionDeadline"
+              type="date"
+              name="submissionDeadline"
+              defaultValue={settings?.submission_deadline || ""}
+              className="w-full max-w-xs rounded-md border border-border/80 bg-background/60 px-4 py-2.5 font-serif text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+            <p className="mt-2 font-serif text-xs text-muted-foreground">日期過了之後投稿頁就不再顯示。是否停止收件，請在後台總覽用「停用前台投稿」切換。</p>
+          </div>
+
+          {/* 6. 封面圖片上傳與預覽 */}
           <div className="pt-2 border-t border-border/40">
             <label className="block font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2.5">
               上傳新主題圖片 (不選擇則維持原封面)
@@ -121,7 +143,7 @@ export default async function HomepageSettings() {
               <input 
                 type="file" 
                 name="image" 
-                accept="image/*" 
+                accept="image/jpeg,image/png,image/gif,image/webp,image/avif" 
                 className="w-full text-xs font-serif text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-serif file:bg-primary/10 file:text-primary hover:file:bg-primary/20 file:cursor-pointer cursor-pointer border border-border/80 rounded-md bg-background/60 p-2" 
               />
             </div>

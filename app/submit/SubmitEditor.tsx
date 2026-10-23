@@ -11,6 +11,7 @@ import {
 } from "@blocknote/react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
+import { useTheme } from "next-themes";
 
 // 💡 自訂選單：只保留「內文」與「標題」，徹底排除所有 List 與 Quote
 function CustomBlockTypeSelect() {
@@ -30,6 +31,7 @@ function CustomBlockTypeSelect() {
 }
 
 export default function SubmitEditor({ onChange }: { onChange: (html: string) => void }) {
+  const { resolvedTheme } = useTheme();
   // 💡 不需引用 locales，直接覆蓋預設 Placeholder 內容
   const editor = useCreateBlockNote({
     dictionary: {
@@ -40,10 +42,10 @@ export default function SubmitEditor({ onChange }: { onChange: (html: string) =>
   });
 
   return (
-    <div className="min-h-[300px] rounded-md border border-[#333] bg-[#121212] py-4 cursor-text">
+    <div className="min-h-[300px] rounded-md border border-border bg-background py-4 cursor-text">
       <BlockNoteView
         editor={editor as any}
-        theme="dark"
+        theme={resolvedTheme === "dark" ? "dark" : "light"}
         slashMenu={false}        // 1. 禁用斜線選單 (/)
         sideMenu={false}         // 2. 禁用左側 [+] 拖曳把手
         formattingToolbar={false} // 3. 停用預設格式列

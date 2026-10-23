@@ -4,6 +4,8 @@ import { useState } from "react";
 import { submitStudentWorkAction } from "@/lib/actions";
 import dynamic from "next/dynamic";
 
+const STUDENT_EMAIL_RE = /^[a-z0-9._-]+@stu\.tshs\.tp\.edu\.tw$/i;
+
 interface SubmitEditorProps {
   onChange: (html: string) => void;
 }
@@ -20,12 +22,13 @@ export default function SubmitForm() {
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
 
-    if (value && !value.toLowerCase().endsWith("@stu.tshs.tp.edu.tw")) {
+    if (value && !STUDENT_EMAIL_RE.test(value.trim())) {
       setEmailError("僅限使用學校信箱 (@stu.tshs.tp.edu.tw)");
     } else {
       setEmailError("");
@@ -33,21 +36,44 @@ export default function SubmitForm() {
   };
 
   async function handleSubmit(formData: FormData) {
-    if (!email.toLowerCase().endsWith("@stu.tshs.tp.edu.tw")) {
+    if (!STUDENT_EMAIL_RE.test(email.trim())) {
       setEmailError("請填寫正確的學校信箱");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await submitStudentWorkAction(formData);
-      alert("投稿成功！我們會盡快審核您的作品。");
-      window.location.reload();
+      const result = await submitStudentWorkAction(formData);
+      if ("error" in result) {
+        // 顯示伺服器回傳的真正原因（例如投稿太頻繁、圖片格式不對）
+        alert(result.error);
+        return;
+      }
+      setSubmitted(true);
     } catch (error) {
       alert("投稿發生錯誤，請稍後再試。");
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center gap-5 py-8 text-center" role="status">
+        <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-full border-[1.5px] border-primary text-2xl text-primary">✓</span>
+        <h3 className="font-serif text-2xl tracking-[0.15em]">投稿成功</h3>
+        <p className="max-w-sm font-serif text-sm leading-[1.9] text-muted-foreground">
+          謝謝你把作品交給我們！編輯團隊會盡快閱讀，作品刊登後就會出現在「作品典藏」。
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="min-h-11 border border-foreground px-6 font-serif text-sm tracking-[0.15em] transition-colors hover:bg-foreground hover:text-background"
+        >
+          再投一篇
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -156,7 +182,7 @@ export default function SubmitForm() {
             <input 
               type="file" 
               name="image" 
-              accept="image/*" 
+              accept="image/jpeg,image/png,image/gif,image/webp,image/avif" 
               className="w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border border-border file:bg-muted file:py-2 file:px-4 file:text-xs file:font-semibold file:text-foreground hover:file:bg-muted/80 cursor-pointer" 
             />
           </div>

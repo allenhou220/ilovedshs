@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { deleteSubmissionAction } from "@/lib/actions";
-import { Trash2, Search, Download, CheckSquare, Square, X } from "lucide-react";
+import Link from "next/link";
+import { deleteSubmissionAction, rejectSubmissionAction } from "@/lib/actions";
+import { Trash2, Search, Download, CheckSquare, Square, X, PenLine, Ban } from "lucide-react";
 
 interface SubmissionsListProps {
   submissions: any[];
@@ -53,12 +54,29 @@ export default function SubmissionsList({
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("確定要徹底從資料庫刪除此稿件嗎？此動作無法復原！")) {
+    if (confirm("確定要徹底從資料庫刪除此稿件嗎？此動作無法復原！\n（若只是這期不收錄，建議改用「未收錄」，保留投稿紀錄）")) {
       startTransition(async () => {
-        await deleteSubmissionAction(id);
-        setSelectedIds((prev) => prev.filter((item) => item !== id));
+        try {
+          await deleteSubmissionAction(id);
+          setSelectedIds((prev) => prev.filter((item) => item !== id));
+        } catch {
+          alert("刪除失敗，請重新整理後再試");
+        }
       });
     }
+  };
+
+  // 本期未收錄：從待審清單移除，但保留投稿紀錄
+  const handleReject = (id: number, title: string) => {
+    if (!confirm(`將《${title}》標記為「本期未收錄」？\n稿件會從待審清單移除，但保留紀錄。`)) return;
+    startTransition(async () => {
+      try {
+        await rejectSubmissionAction(id);
+        setSelectedIds((prev) => prev.filter((item) => item !== id));
+      } catch {
+        alert("操作失敗，請重新整理後再試");
+      }
+    });
   };
 
   const handleConfirmExport = () => {
@@ -75,7 +93,7 @@ export default function SubmissionsList({
       {/* 頁面標題與右上方唯一匯出控制區 */}
       <header className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-border/60 pb-8 gap-6">
         <div>
-          <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
+          <p className="mb-2 font-display text-[10px] uppercase tracking-[0.12em] text-primary font-bold">
             SUBMISSIONS / 投稿審核
           </p>
           <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl text-foreground">
@@ -226,10 +244,27 @@ export default function SubmissionsList({
                   </div>
 
                   <div className="flex flex-col gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Link
+                      href={`/admin/submissions/${item.id}`}
+                      className="inline-flex min-h-9 items-center gap-1.5 bg-foreground px-3 text-xs text-background transition-opacity hover:opacity-90"
+                    >
+                      <PenLine size={14} />
+                      審核／發布
+                    </Link>
                     <button
+                      type="button"
+                      onClick={() => handleReject(item.id, item.title || "無標題")}
+                      disabled={isPending}
+                      className="inline-flex min-h-9 items-center gap-1.5 border border-border px-3 text-xs text-foreground transition-colors hover:border-foreground disabled:opacity-50"
+                    >
+                      <Ban size={14} />
+                      未收錄
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDelete(item.id)}
                       disabled={isPending}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400 text-xs rounded-md transition-colors"
+                      className="inline-flex min-h-9 items-center gap-1.5 px-3 text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                     >
                       <Trash2 size={14} />
                       刪除

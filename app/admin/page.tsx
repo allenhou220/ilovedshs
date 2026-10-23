@@ -2,173 +2,165 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { FileText, Inbox, LayoutTemplate, User, Users, LogOut } from "lucide-react";
-import { getSubmissionStatus, toggleSubmissionStatusAction } from "@/lib/actions";
+import { BookOpen, FileText, Inbox, LayoutTemplate, User, Users } from "lucide-react";
+import { toggleSubmissionStatusAction } from "@/lib/actions";
+import { getDashboardStats } from "@/lib/queries";
+import { LogoutButton } from "@/components/logout-button";
 
 export const dynamic = "force-dynamic";
+
+function StatCard({ label, value, hint, href }: { label: string; value: number | string; hint?: string; href?: string }) {
+  const body = (
+    <>
+      <span className="font-serif text-xs tracking-[0.15em] text-muted-foreground">{label}</span>
+      <span className="font-display text-4xl font-bold tabular-nums text-foreground">{value}</span>
+      {hint && <span className="font-serif text-xs text-muted-foreground">{hint}</span>}
+    </>
+  );
+  const cls = "flex flex-col gap-2 border border-border bg-card p-5 transition-colors";
+  return href ? (
+    <Link href={href} className={`${cls} hover:border-foreground`}>{body}</Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+const MENU = [
+  { href: "/admin/works", icon: FileText, title: "文章上架管理", desc: "新增、編輯、刪除文章，設定排序與首頁精選。" },
+  { href: "/admin/submissions", icon: Inbox, title: "學生投稿審核", desc: "閱讀投稿、發布作品，或標記本期未收錄並留下回饋。" },
+  { href: "/admin/issues", icon: BookOpen, title: "期刊管理", desc: "設定每一期的主題、卷首語、編輯名單與封面。" },
+  { href: "/admin/homepage", icon: LayoutTemplate, title: "首頁外觀設定", desc: "修改首頁大標題、引言文字與封面圖片。" },
+];
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");
 
   const isAdmin = (session.user as any)?.role === "admin";
-  
-  // 💡 抓取目前是否開放投稿的狀態
-  const isSubmissionOpen = await getSubmissionStatus();
+  const stats = await getDashboardStats();
+  const maxCat = Math.max(1, ...stats.categories.map((c) => c.count));
 
   return (
-    <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">
-      <div className="max-w-6xl mx-auto">
-        
-        {/* 頂部 Header：歡迎詞與帳號相關操作 */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border/60 pb-8 mb-12 gap-6">
+    <main className="min-h-screen bg-background px-5 py-12 text-foreground sm:px-8 md:py-16">
+      <div className="mx-auto max-w-6xl">
+        {/* ===== 頂部 ===== */}
+        <header className="mb-10 flex flex-col justify-between gap-6 border-b border-foreground pb-8 md:flex-row md:items-end">
           <div>
-            <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
-              EDITORIAL DESK / 編輯工作檯
-            </p>
-            <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl md:text-5xl text-foreground">
-              後台管理大廳
-            </h1>
-            <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
-              歡迎回來，請選擇您要執行的刊物管理項目。
-            </p>
+            <p className="mb-2 font-display text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Editorial Desk ／ 編輯工作檯</p>
+            <h1 className="font-serif text-3xl font-light tracking-[0.12em] sm:text-4xl md:text-5xl">後台總覽</h1>
+            <p className="mt-2 font-serif text-sm text-muted-foreground">歡迎回來，{session.user?.email}</p>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            <Link 
-              href="/admin/account" 
-              className="inline-flex items-center gap-2 px-4 py-2 border border-border/80 rounded-md font-serif text-xs tracking-wider text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
-            >
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link href="/admin/account" className="inline-flex min-h-10 items-center gap-2 border border-border px-4 font-serif text-xs tracking-wider text-muted-foreground transition-colors hover:border-foreground hover:text-foreground">
               <User size={15} /> 我的帳號
             </Link>
-            
             {isAdmin && (
-              <>
-                <Link 
-                  href="/admin/users" 
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-border/80 rounded-md font-serif text-xs tracking-wider text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
-                >
-                  <Users size={15} /> 帳號管理
-                </Link>
-
-                {/* 💡 總管理員專屬：開放/停用投稿開關按鈕 */}
-                <form action={async () => {
-                  "use server";
-                  await toggleSubmissionStatusAction(isSubmissionOpen);
-                }} className="m-0">
-                  <button 
-                    type="submit" 
-                    className={`inline-flex items-center gap-2 px-4 py-2 border rounded-md font-serif text-xs tracking-wider transition-colors ${
-                      isSubmissionOpen 
-                        ? 'border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive' 
-                        : 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500'
-                    }`}
-                  >
-                    {isSubmissionOpen ? "🔴 停用前台投稿" : "🟢 開放前台投稿"}
-                  </button>
-                </form>
-              </>
+              <Link href="/admin/users" className="inline-flex min-h-10 items-center gap-2 border border-border px-4 font-serif text-xs tracking-wider text-muted-foreground transition-colors hover:border-foreground hover:text-foreground">
+                <Users size={15} /> 帳號管理
+              </Link>
             )}
-
-            <form action="/api/auth/signout" method="POST" className="m-0">
-              <button 
-                type="submit" 
-                className="inline-flex items-center gap-2 px-4 py-2 border border-destructive/50 bg-destructive/10 text-destructive rounded-md font-serif text-xs tracking-wider hover:bg-destructive hover:text-destructive-foreground transition-colors"
-              >
-                <LogOut size={15} /> 登出
-              </button>
-            </form>
+            <LogoutButton />
           </div>
         </header>
-        
-        {/* 三個核心功能大按鈕 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          {/* 1. 文章上架與管理 */}
-          <Link 
-            href="/admin/works" 
-            className="group relative flex flex-col justify-between p-8 rounded-lg border border-border/70 bg-card/40 hover:bg-card hover:border-primary/50 transition-all duration-500 hover:-translate-y-1 shadow-sm hover:shadow-md"
-          >
-            <div>
-              <div className="mb-6 inline-flex p-4 rounded-full bg-primary/10 text-primary transition-transform duration-500 group-hover:scale-110">
-                <FileText size={28} />
-              </div>
-              <h2 className="font-serif text-2xl font-light tracking-wide text-foreground mb-3 group-hover:text-primary transition-colors">
-                文章上架管理
-              </h2>
-              <p className="font-serif text-sm leading-[1.8] text-muted-foreground font-light">
-                新增、編輯、刪除正式發布的文章，設定排序與首頁精選。
-              </p>
-            </div>
-            <span className="mt-8 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 group-hover:text-primary transition-colors">
-              MANAGE WORKS &rarr;
-            </span>
-          </Link>
 
-          {/* 2. 學生投稿審核 (💡 依據開關狀態動態呈現) */}
-          {isSubmissionOpen ? (
-            <Link 
-              href="/admin/submissions" 
-              className="group relative flex flex-col justify-between p-8 rounded-lg border border-border/70 bg-card/40 hover:bg-card hover:border-amber-500/50 transition-all duration-500 hover:-translate-y-1 shadow-sm hover:shadow-md"
-            >
-              <div>
-                <div className="mb-6 inline-flex p-4 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 transition-transform duration-500 group-hover:scale-110">
-                  <Inbox size={28} />
-                </div>
-                <h2 className="font-serif text-2xl font-light tracking-wide text-foreground mb-3 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                  學生投稿審核
-                </h2>
-                <p className="font-serif text-sm leading-[1.8] text-muted-foreground font-light">
-                  檢視學生投遞的稿件，審核通過後可一鍵將優良作品發布。
-                </p>
-              </div>
-              <span className="mt-8 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                REVIEW SUBMISSIONS &rarr;
+        {/* ===== 數據 ===== */}
+        <section aria-label="數據總覽" className="mb-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="已發布作品" value={stats.totalWorks} hint={`其中學生投稿 ${stats.studentWorks} 篇`} href="/admin/works" />
+          <StatCard label="待審稿件" value={stats.pending} hint={stats.pending > 0 ? "點此開始審稿" : "目前沒有待審稿件"} href="/admin/submissions" />
+          <StatCard label="近 30 天投稿" value={stats.last30} />
+          <StatCard label="投稿審核結果" value={`${stats.publishedSubmissions}／${stats.rejectedSubmissions}`} hint="已刊登／未收錄" />
+        </section>
+
+        {/* ===== 投稿開關 ===== */}
+        <section className="mb-12 flex flex-col gap-4 border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span aria-hidden="true" className={`size-2.5 rounded-full ${stats.isSubmissionOpen ? "bg-emerald-600" : "bg-destructive"}`} />
+            <span className="font-serif text-base">前台投稿目前{stats.isSubmissionOpen ? "開放中" : "已停用"}</span>
+          </div>
+          {isAdmin ? (
+            <form action={toggleSubmissionStatusAction}>
+              <button
+                type="submit"
+                className={`min-h-10 border px-4 font-serif text-xs tracking-wider transition-colors ${
+                  stats.isSubmissionOpen
+                    ? "border-destructive/50 text-destructive hover:bg-destructive/10"
+                    : "border-emerald-700/50 text-emerald-700 hover:bg-emerald-600/10 dark:text-emerald-400"
+                }`}
+              >
+                {stats.isSubmissionOpen ? "停用前台投稿" : "開放前台投稿"}
+              </button>
+            </form>
+          ) : (
+            <span className="font-serif text-xs text-muted-foreground">只有總管理員可以切換</span>
+          )}
+        </section>
+
+        <div className="mb-12 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+          {/* ===== 最新待審稿件 ===== */}
+          <section className="border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="font-serif text-lg tracking-[0.1em]">最新待審稿件</h2>
+              <Link href="/admin/submissions" className="font-serif text-xs tracking-[0.1em] text-primary">全部稿件 →</Link>
+            </div>
+            {stats.recent.length === 0 ? (
+              <p className="px-5 py-10 text-center font-serif text-sm text-muted-foreground">目前沒有待審稿件。</p>
+            ) : (
+              <ul>
+                {stats.recent.map((s: any) => (
+                  <li key={s.id} className="border-b border-border last:border-b-0">
+                    <Link href={`/admin/submissions/${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 transition-colors hover:bg-secondary/60">
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="truncate font-serif text-base">{s.title || "無標題"}</span>
+                        <span className="font-serif text-xs text-muted-foreground">
+                          {s.category || "散文"}・{s.class} {s.author_name}
+                        </span>
+                      </span>
+                      <span className="font-sans text-xs text-muted-foreground">
+                        {s.created_at ? new Date(s.created_at).toLocaleDateString("zh-TW") : ""}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* ===== 各文體作品數 ===== */}
+          <section className="border border-border bg-card p-5">
+            <h2 className="mb-5 font-serif text-lg tracking-[0.1em]">各文體作品數</h2>
+            {stats.categories.length === 0 ? (
+              <p className="py-6 text-center font-serif text-sm text-muted-foreground">尚無作品。</p>
+            ) : (
+              <ul className="flex flex-col gap-3.5">
+                {stats.categories.map((c) => (
+                  <li key={c.category} className="grid grid-cols-[3.5rem_1fr_2.5rem] items-center gap-3">
+                    <span className="font-serif text-sm">{c.category}</span>
+                    <span className="h-2.5 bg-secondary" aria-hidden="true">
+                      <span className="block h-full bg-primary" style={{ width: `${(c.count / maxCat) * 100}%` }} />
+                    </span>
+                    <span className="text-right font-sans text-sm tabular-nums">{c.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* ===== 功能選單 ===== */}
+        <section aria-label="管理功能" className="grid gap-4 sm:grid-cols-2">
+          {MENU.map(({ href, icon: Icon, title, desc }) => (
+            <Link key={href} href={href} className="group flex gap-5 border border-border bg-card p-6 transition-colors hover:border-foreground">
+              <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
+                <Icon size={22} />
+              </span>
+              <span className="flex flex-col gap-1.5">
+                <span className="font-serif text-xl tracking-[0.08em] transition-colors group-hover:text-primary">{title}</span>
+                <span className="font-serif text-sm leading-[1.8] text-muted-foreground">{desc}</span>
               </span>
             </Link>
-          ) : (
-            <div className="relative flex flex-col justify-between p-8 rounded-lg border border-border/40 bg-muted/20 opacity-60 cursor-not-allowed">
-              <div>
-                <div className="mb-6 inline-flex p-4 rounded-full bg-muted text-muted-foreground">
-                  <Inbox size={28} />
-                </div>
-                <h2 className="font-serif text-2xl font-light tracking-wide text-muted-foreground mb-3">
-                  學生投稿審核
-                </h2>
-                <p className="font-serif text-sm leading-[1.8] text-muted-foreground/70 font-light mb-4">
-                  檢視學生投遞的稿件，審核通過後可一鍵將優良作品發布。
-                </p>
-              </div>
-              <div>
-                <span className="inline-block border border-destructive/30 text-destructive font-serif text-xs px-3 py-1 rounded tracking-widest bg-destructive/5">
-                  目前已停用投稿
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* 3. 首頁外觀設定 */}
-          <Link 
-            href="/admin/homepage" 
-            className="group relative flex flex-col justify-between p-8 rounded-lg border border-border/70 bg-card/40 hover:bg-card hover:border-primary/50 transition-all duration-500 hover:-translate-y-1 shadow-sm hover:shadow-md"
-          >
-            <div>
-              <div className="mb-6 inline-flex p-4 rounded-full bg-primary/10 text-primary transition-transform duration-500 group-hover:scale-110">
-                <LayoutTemplate size={28} />
-              </div>
-              <h2 className="font-serif text-2xl font-light tracking-wide text-foreground mb-3 group-hover:text-primary transition-colors">
-                首頁外觀設定
-              </h2>
-              <p className="font-serif text-sm leading-[1.8] text-muted-foreground font-light">
-                修改首頁大標題、引言文字，以及更換首頁的主題封面圖片。
-              </p>
-            </div>
-            <span className="mt-8 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 group-hover:text-primary transition-colors">
-              HOMEPAGE SETTINGS &rarr;
-            </span>
-          </Link>
-
-        </div>
+          ))}
+        </section>
       </div>
     </main>
   );

@@ -1,9 +1,10 @@
 import { sql } from "@vercel/postgres";
+import { ensureSchema } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createUserAction } from "@/lib/actions";
+import { CreateUserForm } from "@/components/create-user-form";
 import UserRow from "./UserRow";
 import { ArrowLeft, UserPlus, Users } from "lucide-react";
 
@@ -15,9 +16,8 @@ export default async function UsersPage() {
     redirect("/admin");
   }
 
-  // 確保通知欄位存在
-  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
-  
+  await ensureSchema();
+
   const { rows: users } = await sql`SELECT id, email, role, receive_notifications FROM users ORDER BY id ASC`;
   const currentUserEmail = session.user?.email;
 
@@ -55,61 +55,7 @@ export default async function UsersPage() {
             <span>新增團隊成員帳號</span>
           </div>
 
-          <form 
-            action={async (formData) => {
-              "use server";
-              await createUserAction(formData);
-            }} 
-            className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end"
-          >
-            <div className="md:col-span-5">
-              <label className="block font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2">
-                Email 帳號
-              </label>
-              <input 
-                type="email" 
-                name="email" 
-                required 
-                placeholder="name@example.com"
-                className="w-full rounded-md border border-border/80 bg-background/60 px-3.5 py-2.5 font-serif text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/30"
-              />
-            </div>
-            
-            <div className="md:col-span-3">
-              <label className="block font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2">
-                預設密碼
-              </label>
-              <input 
-                type="text" 
-                name="password" 
-                required 
-                placeholder="手動輸入"
-                className="w-full rounded-md border border-border/80 bg-background/60 px-3.5 py-2.5 font-serif text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/30"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2">
-                身分權限
-              </label>
-              <select 
-                name="role" 
-                className="w-full rounded-md border border-border/80 bg-background/60 px-3.5 py-2.5 font-serif text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="editor" className="bg-background text-foreground">編輯 (老師/學生)</option>
-                <option value="admin" className="bg-background text-foreground">總管理員</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <button 
-                type="submit" 
-                className="w-full inline-flex items-center justify-center gap-1 rounded-md bg-primary py-2.5 px-4 font-serif text-xs tracking-wider text-primary-foreground font-medium transition-colors hover:bg-primary/90 shadow-sm"
-              >
-                新增帳號
-              </button>
-            </div>
-          </form>
+          <CreateUserForm />
         </section>
 
         {/* 使用者列表 */}

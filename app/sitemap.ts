@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { sql } from "@vercel/postgres"
+import { getAuthors, getIssues } from "@/lib/queries"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://ilovedshs.vercel.app' // 你的正式網址
@@ -19,6 +20,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8, // 總覽頁每天可能會有新文章
     },
     {
+      url: `${baseUrl}/issues`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/authors`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    },
+    {
       url: `${baseUrl}/about`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
@@ -34,7 +47,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // 2. 從資料庫撈取所有文章，自動產生每一篇文章的專屬網址
-    const { rows: works } = await sql`SELECT title, created_at FROM works WHERE title IS NOT NULL`
+    // 若資料表沒有 created_at 欄位，改用只取標題的查詢，確保文章一定會被收錄
+    let works: any[] = []
+    try {
+      works = (await sql`SELECT title, created_at FROM works WHERE title IS NOT NULL`).rows
+    } catch {
+      works = (await sql`SELECT title FROM works WHERE title IS NOT NULL`).rows
+    }
 
     const dynamicRoutes: MetadataRoute.Sitemap = works.map((work) => ({
       // 將中文標題轉碼，符合網址規範
@@ -44,8 +63,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7, // 文章頁權重
     }))
 
-    // 3. 把靜態頁面和動態文章頁面合併，交給 Google
-    return [...staticRoutes, ...dynamicRoutes]
+    // 3. 期刊頁與作者頁
+    const [issues, authors] = await Promise.all([getIssues(), getAuthors()])
+    const issueRoutes: MetadataRoute.Sitemap = issues.map((i) => ({
+      url: `${baseUrl}/issues/${encodeURIComponent(i.name)}`,
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    }))
+    const authorRoutes: MetadataRoute.Sitemap = authors.map((a) => ({
+      url: `${baseUrl}/authors/${encodeURIComponent(a.name)}`,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    }))
+
+    // 4. 全部合併，交給 Google
+    return [...staticRoutes, ...dynamicRoutes, ...issueRoutes, ...authorRoutes]
   } catch (error) {
     console.error("生成 Sitemap 失敗:", error)
     // 如果資料庫出錯，至少給 Google 基本的靜態地圖

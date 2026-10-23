@@ -2,119 +2,123 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { Menu, X } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Menu, X, Search } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
 
 const links = [
-  { href: '/works', label: '作品典藏' },
-  { href: '/about', label: '關於文薈' },
-  { href: '/submit', label: '我想投稿' },
+  { href: '/works', label: '作品' },
+  { href: '/issues', label: '期刊' },
+  { href: '/authors', label: '作者' },
+  { href: '/about', label: '關於' },
 ]
 
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
 export function SiteHeader() {
+  const pathname = usePathname() || '/'
   const [isOpen, setIsOpen] = useState(false)
 
-  // 當手機選單開啟時，禁止背景網頁滾動
+  // 切換頁面時自動關閉手機選單
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
+    setIsOpen(false)
+  }, [pathname])
+
+  // 手機選單開啟時，禁止背景網頁滾動
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset'
     return () => {
       document.body.style.overflow = 'unset'
     }
   }, [isOpen])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background">
-      {/* 頂部 BETA 公告列 */}
-      <div className="border-b border-border/30 bg-muted/20 py-2 text-center px-4">
-        <p className="font-serif text-[11px] tracking-[0.18em] text-muted-foreground/80 leading-relaxed">
-          <span className="mr-1.5 font-mono text-[10px] font-semibold text-primary uppercase">[ BETA ]</span>
-          網站目前仍在架設測試中，內容與功能持續更新完善
-        </p>
-      </div>
-
-      <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 md:h-20 md:px-8">
-        
-        {/* LOGO 區塊 */}
-        <Link 
-          href="/" 
-          className="group flex items-center gap-3 active:opacity-80 transition-opacity" 
-          aria-label="東山文薈首頁"
-          onClick={() => setIsOpen(false)}
-        >
-          <div className="relative size-8 md:size-10 overflow-hidden transition-transform duration-500 group-hover:-rotate-3 grayscale-[15%] group-hover:grayscale-0">
-            <Image 
-              src="/images/dshslogo.jpg" 
-              alt="文薈 Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-
+    <header className="sticky top-0 z-50 border-b-2 border-foreground bg-background/95 backdrop-blur-sm">
+      <div className="relative mx-auto flex h-[68px] max-w-7xl items-center justify-between gap-4 px-5 md:h-[76px] md:px-8">
+        {/* 刊名 */}
+        <Link href="/" className="group flex items-center gap-3" aria-label="東山文薈首頁">
+          <span
+            aria-hidden="true"
+            className="inline-flex size-10 items-center justify-center bg-primary font-serif text-xl font-bold text-primary-foreground transition-transform duration-500 group-hover:-rotate-6"
+          >
+            薈
+          </span>
           <span className="flex flex-col leading-none">
-            <span className="font-serif text-lg md:text-xl font-normal tracking-[0.2em] text-foreground">
-              東山文薈
-            </span>
-            <span className="mt-1 text-[8px] md:text-[9px] uppercase tracking-[0.25em] text-muted-foreground">
-              DSHS WENHUI
-            </span>
+            <span className="font-serif text-[22px] font-black tracking-[0.28em] text-foreground">東山文薈</span>
+            <span className="mt-1.5 hidden font-sans text-[10px] tracking-[0.32em] text-muted-foreground sm:block">東山高中・學生文學誌</span>
           </span>
         </Link>
-        
-        <div className="flex items-center gap-2 sm:gap-4 md:gap-8">
-          {/* 電腦版導覽列 */}
+
+        <div className="flex items-center gap-1 md:gap-8">
+          {/* 電腦版導覽 */}
           <nav className="hidden items-center gap-8 md:flex" aria-label="主要導覽">
-            {links.map((link) => (
-              <Link 
-                key={link.href} 
-                href={link.href} 
-                className="relative pb-1 text-xs font-serif tracking-[0.2em] text-muted-foreground hover:text-foreground after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-foreground after:transition-all after:duration-300 hover:after:w-full"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {links.map((link) => {
+              const active = isActive(pathname, link.href)
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`relative py-2 font-serif text-[15px] tracking-[0.12em] transition-colors hover:text-primary ${
+                    active ? 'text-primary' : 'text-foreground'
+                  }`}
+                >
+                  {link.label}
+                  {active && <span aria-hidden="true" className="absolute -bottom-[22px] left-0 right-[0.3em] h-[3px] bg-primary" />}
+                </Link>
+              )
+            })}
+            <Link
+              href="/submit"
+              className="inline-flex min-h-10 items-center border border-foreground px-4 font-serif text-sm tracking-[0.1em] transition-colors hover:bg-foreground hover:text-background"
+            >
+              投稿
+            </Link>
           </nav>
-          
-          {/* 深淺色主題切換開關 */}
-          <div className="opacity-80 transition-opacity hover:opacity-100">
-            <ModeToggle />
+
+          <div className="flex items-center">
+            <Link
+              href="/works?focus=search"
+              aria-label="搜尋作品"
+              className="flex size-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Search className="size-[18px]" strokeWidth={1.6} />
+            </Link>
+            <div className="px-1 opacity-80 transition-opacity hover:opacity-100">
+              <ModeToggle />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex size-11 items-center justify-center text-foreground md:hidden"
+              aria-label={isOpen ? '關閉選單' : '開啟選單'}
+              aria-expanded={isOpen}
+            >
+              {isOpen ? <X className="size-6" strokeWidth={1.5} /> : <Menu className="size-6" strokeWidth={1.5} />}
+            </button>
           </div>
-          
-          {/* 手機版漢堡選單按鈕 */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground md:hidden active:bg-muted/50 transition-colors"
-            aria-label={isOpen ? "關閉選單" : "開啟選單"}
-          >
-            {isOpen ? <X className="size-6" strokeWidth={1.5} /> : <Menu className="size-6" strokeWidth={1.5} />}
-          </button>
         </div>
 
-        {/* 💡 核心修復：使用 absolute top-full 貼合 Header 底部，加上 h-[100dvh] 與純色 bg-background 防止透底 */}
+        {/* 手機選單 */}
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 h-[100dvh] z-50 flex flex-col bg-background border-t border-border/40 md:hidden animate-in fade-in duration-150">
-            <nav className="flex flex-col px-6 pt-4 pb-20" aria-label="行動版導覽">
-              {links.map((link) => (
-                <Link 
-                  key={link.href} 
-                  href={link.href} 
-                  onClick={() => setIsOpen(false)}
-                  className="flex min-h-[56px] items-center justify-between border-b border-border/40 font-serif text-base tracking-[0.25em] text-foreground active:bg-muted/30 transition-colors px-2"
+          <div className="absolute left-0 right-0 top-full z-50 h-[100dvh] border-t border-border bg-background md:hidden">
+            <nav className="flex flex-col px-6 pb-20 pt-2" aria-label="行動版導覽">
+              {[...links, { href: '/submit', label: '投稿' }].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={isActive(pathname, link.href) ? 'page' : undefined}
+                  className="flex min-h-[60px] items-center justify-between border-b border-border font-serif text-lg tracking-[0.15em] text-foreground aria-[current=page]:text-primary"
                 >
                   <span>{link.label}</span>
-                  <span className="font-mono text-xs text-muted-foreground/60">→</span>
+                  <span aria-hidden="true" className="text-sm text-muted-foreground">→</span>
                 </Link>
               ))}
             </nav>
           </div>
         )}
-
       </div>
     </header>
   )

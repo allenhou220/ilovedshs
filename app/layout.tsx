@@ -1,32 +1,15 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Syne, Plus_Jakarta_Sans, Noto_Serif_TC } from 'next/font/google'
 import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { ThemeProvider } from '@/components/theme-provider'
 import { BackToTop } from '@/components/back-to-top'
 import './globals.css'
 
-const syne = Syne({ 
-  subsets: ['latin'], 
-  weight: ['700', '800'], 
-  variable: '--font-syne',
-  display: 'swap' 
-})
+// 字體：全站使用思源宋體（由 globals.css 從 Google Fonts 依需要分段載入），
+// 介面小字使用各裝置內建的黑體，不另外下載字型檔
 
-const jakarta = Plus_Jakarta_Sans({ 
-  subsets: ['latin'], 
-  weight: ['400', '500', '600', '700'], 
-  variable: '--font-jakarta',
-  display: 'swap' 
-})
-
-const serif = Noto_Serif_TC({ 
-  subsets: ['latin'], 
-  weight: ['300', '400', '500', '700'], 
-  variable: '--font-noto-serif',
-  display: 'swap' 
-})
+const SITE_URL = 'https://ilovedshs.vercel.app'
 
 export const metadata: Metadata = {
   title: { 
@@ -34,9 +17,15 @@ export const metadata: Metadata = {
     template: '%s｜東山文薈' 
   },
   description: '收錄學生散文、新詩與小說，讓校園裡每一種微小的聲音，都有被閱讀的可能。',
-  generator: 'v0.app',
-  
-  // 💡 加上這段，Google 就能驗證這是你的網站
+  // 讓分享到 LINE、Facebook 時的預覽圖與網址正確
+  metadataBase: new URL(SITE_URL),
+  openGraph: {
+    siteName: '東山文薈',
+    locale: 'zh_TW',
+    type: 'website',
+  },
+
+  // Google Search Console 驗證
   verification: {
     google: "rbSnjhQCf1DWi7PiE4y0C02x4bKvUO8KCRG_T-zf6Aw", 
   },
@@ -44,22 +33,22 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { 
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f4f0e8' }, 
-    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+    { media: '(prefers-color-scheme: light)', color: '#f4efe6' },
+    { media: '(prefers-color-scheme: dark)', color: '#181512' },
   ],
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1, 
+  // 不限制最大縮放：視力較弱的讀者需要能用手指放大文字
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html 
       lang="zh-Hant" 
-      className={`${syne.variable} ${jakarta.variable} ${serif.variable}`} 
+
       suppressHydrationWarning
     >
-      <body className="bg-background text-foreground font-sans antialiased">
+      <body className="bg-background font-serif text-foreground antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -14,11 +14,11 @@ export default async function AdminWorksPage() {
     redirect("/");
   }
 
-  // 💡 在 SQL SELECT 加上 issue 與 source_type
+  // 排序規則與前台「作品典藏」、上下移動功能完全一致
   const { rows: works } = await sql`
     SELECT id, title, author, category, issue, source_type, image_url, featured, sort_order 
     FROM works 
-    ORDER BY sort_order ASC
+    ORDER BY sort_order ASC NULLS LAST, id DESC
   `;
 
   return (

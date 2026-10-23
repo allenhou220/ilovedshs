@@ -1,21 +1,46 @@
 import { sql } from "@vercel/postgres";
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ReadingProgress } from '@/components/reading-progress';
+import { ReadingTools } from '@/components/reading-tools';
+import { getRelatedWorks } from '@/lib/queries';
+import { Seal, WorkPlaceholder } from '@/components/editorial';
 import type { Metadata } from 'next';
+import { sanitizeHtml } from '@/lib/sanitize-html';
+import { authorHref, isPublicAuthor, issueHref, makeExcerpt, readingStats, workHref } from '@/lib/text';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// 網址裡的參數可能已經被解碼過，標題含有「%」時再解碼一次會出錯，所以要包一層保護
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+// 以標題找文章；若找不到且網址是數字，再以 id 找（相容舊的 /works/12 連結）
+async function findWork(param: string) {
+  const key = safeDecode(param);
+  const byTitle = await sql`SELECT * FROM works WHERE title = ${key} ORDER BY id DESC LIMIT 1`;
+  if (byTitle.rows[0]) return byTitle.rows[0];
+
+  if (/^\d+$/.test(key)) {
+    const byId = await sql`SELECT * FROM works WHERE id = ${Number(key)}`;
+    if (byId.rows[0]) return byId.rows[0];
+  }
+  return null;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const decodedTitle = decodeURIComponent(id); 
-  
+
   try {
-    const { rows } = await sql`SELECT title, author, content, image_url FROM works WHERE title = ${decodedTitle}`;
-    if (rows.length > 0) {
-      const work = rows[0];
-      const cleanDesc = (work.content || '').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().slice(0, 100);
+    const work = await findWork(id);
+    if (work) {
+      const cleanDesc = makeExcerpt(work.content || '', 100);
       const displayImage = work.image_url;
       return {
         title: work.title,
@@ -35,32 +60,28 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const decodedTitle = decodeURIComponent(id);
 
-  let work = null;
-  let prevWork = null;
-  let nextWork = null;
+  let work: any = null;
+  let prevWork: any = null;
+  let nextWork: any = null;
 
   try {
     // 1. 讀取當前文章內容
-    const { rows } = await sql`SELECT * FROM works WHERE title = ${decodedTitle}`;
-    if (rows.length > 0) {
-      work = rows[0];
-    }
+    work = await findWork(id);
 
-    // 2. 💡 撈取所有作品標題，並使用與總覽頁一模一樣的排序規則
-    const { rows: allWorks } = await sql`
-      SELECT title FROM works 
-      ORDER BY sort_order ASC NULLS LAST, id DESC
-    `;
-    
-    // 3. 計算當前文章的前後關係
-    if (work && allWorks.length > 0) {
-      const currentIndex = allWorks.findIndex(w => w.title === work.title);
+    // 2. 撈取所有作品的 id 與標題，使用與總覽頁一模一樣的排序規則
+    if (work) {
+      const { rows: allWorks } = await sql`
+        SELECT id, title FROM works
+        ORDER BY sort_order ASC NULLS LAST, id DESC
+      `;
+
+      // 3. 計算當前文章的前後關係（用 id 比對，避免同名文章搞混）
+      const currentIndex = allWorks.findIndex((w) => w.id === work.id);
       if (currentIndex > 0) {
         prevWork = allWorks[currentIndex - 1]; // 上一篇
       }
-      if (currentIndex < allWorks.length - 1) {
+      if (currentIndex !== -1 && currentIndex < allWorks.length - 1) {
         nextWork = allWorks[currentIndex + 1]; // 下一篇
       }
     }
@@ -74,164 +95,223 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
 
   const isComic = work.category === '漫畫';
   const isPoetry = work.category === '新詩';
+  const isStudent = (work.source_type || '') === '學生投稿';
+  const author: string = work.author || '匿名';
   const displayImage = work.image_url;
 
+  // 先過濾掉危險的 HTML（script、onerror 等），再拿來顯示
+  const safeContent = sanitizeHtml(work.content || '');
+  const stats = readingStats(safeContent, work.category);
+
   const comicImages: string[] = [];
-  if (isComic && work.content) {
-    const imgRegex = /<img[^>]+src=["']([^"']+)["']/g;
+  if (isComic && safeContent) {
+    const imgRegex = /<img[^>]+src="([^"]+)"/g;
     let match;
-    while ((match = imgRegex.exec(work.content)) !== null) {
+    while ((match = imgRegex.exec(safeContent)) !== null) {
       comicImages.push(match[1]);
     }
   }
 
-  const cleanContent = (work.content || '')
-    .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
-    .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')     
-    .replace(/<p>\s*<\/p>/gi, '');             
+  const cleanContent = safeContent
+    .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '')
+    .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
+    .replace(/<p>\s*<\/p>/gi, '');
+
+  const related = await getRelatedWorks({ id: work.id, author, category: work.category, issue: work.issue });
+  const authorWorkCount = isPublicAuthor(author)
+    ? Number((await sql`SELECT COUNT(*)::int AS n FROM works WHERE author = ${author}`).rows[0]?.n || 0)
+    : 0;
+
+  const issueLabel = isStudent ? '學生投稿' : work.issue || '';
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-[calc(6rem+env(safe-area-inset-bottom))]">
-      <style>{`
-        .custom-article-content,
-        .custom-article-content * {
-          font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif) !important;
-          font-variant-numeric: lining-nums tabular-nums !important;
-          font-feature-settings: "lnum" 1, "tnum" 1 !important;
-        }
-        .custom-article-content h1,
-        .custom-article-content h2,
-        .custom-article-content h3 {
-          font-family: var(--font-serif, Georgia, serif) !important;
-        }
-      `}</style>
+    <main className="pb-[calc(2rem+env(safe-area-inset-bottom))]">
+      <ReadingProgress targetId="article-body" />
 
       <article>
-        <header className="mx-auto max-w-5xl px-5 pb-10 pt-16 text-center md:px-8 md:pb-14 md:pt-24">
-          <Link
-            href="/works"
-            className="mb-12 inline-flex items-center gap-2 text-xs tracking-[0.18em] text-muted-foreground transition-colors hover:text-primary"
-          >
-            <ArrowLeft className="size-4" /> 返回作品總覽
-          </Link>
+        {/* ===== 標題區 ===== */}
+        <header className="border-b-2 border-foreground">
+          <div className="mx-auto flex max-w-4xl flex-col items-center gap-7 px-5 pb-12 pt-12 text-center md:px-8 md:pb-16 md:pt-20">
+            <nav aria-label="麵包屑" className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-serif text-[13px] tracking-[0.1em] text-muted-foreground">
+              <Link href="/works" className="transition-colors hover:text-primary">作品</Link>
+              <span aria-hidden="true">／</span>
+              <Link href={`/works?category=${encodeURIComponent(work.category || '散文')}`} className="font-bold text-primary">
+                {work.category || '散文'}
+              </Link>
+              {issueLabel && (
+                <>
+                  <span aria-hidden="true">／</span>
+                  {work.issue && !isStudent ? (
+                    <Link href={issueHref(work.issue)} className="transition-colors hover:text-primary">{issueLabel}</Link>
+                  ) : (
+                    <span>{issueLabel}</span>
+                  )}
+                </>
+              )}
+            </nav>
 
-          <p className="mb-6 text-sm tracking-[0.25em] text-primary">
-            {work.category || '散文'}
-          </p>
+            <h1 className="text-balance font-serif text-4xl font-bold leading-[1.4] tracking-[0.12em] sm:text-5xl md:text-[3.6rem]">
+              {work.title}
+            </h1>
 
-          <h1 className="text-balance font-serif text-3xl font-light leading-tight tracking-wide sm:text-5xl md:text-6xl text-foreground">
-            {work.title}
-          </h1>
+            <div className="flex items-center gap-4">
+              <span aria-hidden="true" className="h-px w-10 bg-foreground/40" />
+              {isPublicAuthor(author) ? (
+                <Link href={authorHref(author)} className="font-serif text-lg tracking-[0.12em] transition-colors hover:text-primary">
+                  {author}
+                </Link>
+              ) : (
+                <span className="font-serif text-lg tracking-[0.12em] text-muted-foreground">匿名</span>
+              )}
+              <span aria-hidden="true" className="h-px w-10 bg-foreground/40" />
+            </div>
 
-          <div className="mt-8 flex items-center justify-center gap-3 text-sm">
-            <span className="font-medium text-foreground/80">{work.author || '匿名'}</span>
+            <p className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-serif text-[13px] tracking-[0.2em] text-muted-foreground">
+              {isComic ? (
+                <span>共 {stats.pages || comicImages.length} 頁</span>
+              ) : (
+                <>
+                  <span>閱讀約 {stats.minutes} 分鐘</span>
+                  <span aria-hidden="true">・</span>
+                  <span>{stats.chars.toLocaleString('zh-TW')} 字</span>
+                </>
+              )}
+            </p>
           </div>
         </header>
 
         {displayImage && !isComic && (
-          <div className="mx-auto max-w-5xl px-5 md:px-8 mb-12">
-            <div className="relative aspect-video w-full overflow-hidden rounded-md border border-border bg-muted">
+          <div className="mx-auto max-w-5xl px-5 pt-12 md:px-8 md:pt-16">
+            <div className="relative aspect-video w-full overflow-hidden border border-foreground/15 bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={displayImage} alt={work.title} className="h-full w-full object-cover" />
             </div>
           </div>
         )}
 
-        {isComic ? (
-          <section className="mx-auto max-w-3xl px-0 md:px-4">
-            <div className="flex flex-col items-center bg-black/90 p-0 md:rounded-md md:border md:border-border/40 overflow-hidden shadow-2xl">
-              {comicImages.length > 0 ? (
-                comicImages.map((src, index) => (
-                  <img
-                    key={index}
-                    src={src}
-                    alt={`${work.title} - 第 ${index + 1} 頁`}
-                    className="w-full h-auto block object-contain select-none"
-                    loading="lazy"
+        <div id="article-body" className="pt-10 md:pt-14">
+          {!isComic && (
+            <div className="mx-auto max-w-3xl px-5 md:px-8">
+              <ReadingTools title={work.title} />
+            </div>
+          )}
+
+          {isComic ? (
+            <section className="mx-auto max-w-3xl px-0 md:px-4">
+              <div className="flex flex-col items-center overflow-hidden border-2 border-foreground bg-foreground">
+                {comicImages.length > 0 ? (
+                  comicImages.map((src, index) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={index}
+                      src={src}
+                      alt={`${work.title} - 第 ${index + 1} 頁`}
+                      className="block h-auto w-full select-none object-contain"
+                      loading="lazy"
+                    />
+                  ))
+                ) : (
+                  <div
+                    className="w-full [&_img]:block [&_img]:h-auto [&_img]:w-full"
+                    dangerouslySetInnerHTML={{ __html: cleanContent }}
                   />
-                ))
-              ) : (
-                <div 
-                  className="w-full [&_img]:w-full [&_img]:h-auto [&_img]:block"
-                  dangerouslySetInnerHTML={{ __html: cleanContent }}
-                />
+                )}
+              </div>
+            </section>
+          ) : (
+            <div className={`mx-auto px-5 py-12 md:px-8 md:py-16 ${isPoetry ? 'max-w-2xl' : 'max-w-[42rem]'}`}>
+              <div
+                id="article-text"
+                className={`
+                  article-body font-serif leading-[2.15] tracking-[0.04em] text-foreground ${isPoetry ? 'text-center' : 'text-justify [&_p]:indent-[2em] [&_p+p]:!mt-[0.7em]'}
+                  [&_h1]:mb-6 [&_h1]:mt-12 [&_h1]:text-[1.6em] [&_h1]:font-bold
+                  [&_h2]:mb-5 [&_h2]:mt-10 [&_h2]:text-[1.35em] [&_h2]:font-bold
+                  [&_h3]:mb-4 [&_h3]:mt-8 [&_h3]:text-[1.15em] [&_h3]:font-bold
+                  [&_p]:!m-0
+                  [&_img]:mx-auto [&_img]:my-8 [&_img]:h-auto [&_img]:max-w-full
+                  [&_blockquote]:my-8 [&_blockquote]:border-y [&_blockquote]:border-primary/40 [&_blockquote]:py-4 [&_blockquote]:text-center [&_blockquote]:text-[1.1em] [&_blockquote]:text-primary
+                  [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6
+                  [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6
+                  [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4
+                `}
+                dangerouslySetInnerHTML={{ __html: cleanContent }}
+              />
+              <p className="mt-16 flex justify-center" aria-hidden="true">
+                <Seal size="sm">完</Seal>
+              </p>
+            </div>
+          )}
+
+          {/* ===== 關於作者 ===== */}
+          <aside className="mx-auto max-w-3xl px-5 py-8 md:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-5 border-y-2 border-foreground py-6">
+              <div className="flex items-center gap-4">
+                <Seal size="lg">{Array.from(author)[0] || '匿'}</Seal>
+                <div className="flex flex-col gap-1">
+                  <span className="font-serif text-xs tracking-[0.12em] text-muted-foreground">作者</span>
+                  <span className="font-serif text-2xl font-bold tracking-[0.2em]">{author}</span>
+                  {authorWorkCount > 0 && (
+                    <span className="font-serif text-sm text-muted-foreground">在文薈發表過 {authorWorkCount} 篇作品</span>
+                  )}
+                </div>
+              </div>
+              {isPublicAuthor(author) && authorWorkCount > 1 && (
+                <Link
+                  href={authorHref(author)}
+                  className="inline-flex min-h-11 items-center border border-foreground px-5 font-serif text-sm tracking-[0.2em] transition-colors hover:bg-foreground hover:text-background"
+                >
+                  更多作品 →
+                </Link>
               )}
             </div>
-            <aside className="mt-16 mx-5 border-y border-border py-8 text-center md:text-left">
-              <p className="mb-3 text-xs tracking-[0.2em] text-primary">ABOUT THE AUTHOR</p>
-              <p className="font-serif text-xl font-bold">{work.author || '匿名'}</p>
-            </aside>
-          </section>
-        ) : (
-          <div className={`mx-auto px-5 py-16 md:py-24 ${isPoetry ? 'max-w-2xl text-center' : 'max-w-3xl'}`}>
-            <div 
-              className="
-                custom-article-content
-                text-lg leading-[2.15] md:text-xl text-foreground text-justify
-                [&_h1]:text-3xl [&_h1]:md:text-4xl [&_h1]:font-light [&_h1]:mt-12 [&_h1]:mb-6
-                [&_h2]:text-2xl [&_h2]:md:text-3xl [&_h2]:font-normal [&_h2]:mt-10 [&_h2]:mb-5
-                [&_h3]:text-xl [&_h3]:md:text-2xl [&_h3]:font-normal [&_h3]:mt-8 [&_h3]:mb-4
-                [&_p]:!m-0 
-                [&_img]:mx-auto [&_img]:my-8 [&_img]:rounded-md [&_img]:max-w-full [&_img]:h-auto
-                [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-6
-                [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4
-                [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4
-              "
-              dangerouslySetInnerHTML={{ __html: cleanContent }}
-            />
-            <aside className="mt-20 border-y border-border py-8 text-center md:text-left">
-              <p className="mb-3 text-xs tracking-[0.2em] text-primary">ABOUT THE AUTHOR</p>
-              <p className="font-serif text-xl font-bold">{work.author || '匿名'}</p>
-            </aside>
-          </div>
-        )}
+          </aside>
+        </div>
       </article>
 
-      {/* 💡 上一篇 / 下一篇 / 返回列表 底部導覽列 */}
-      <nav className="mx-auto max-w-5xl px-5 md:px-8 mt-16">
-        <div className="flex flex-col items-center justify-between gap-10 border-t border-border pt-12 md:flex-row md:gap-4">
-          
-          {/* 上一篇 */}
-          <div className="w-full flex-1 md:text-left text-center">
-            {prevWork && (
-              <Link href={`/works/${encodeURIComponent(prevWork.title)}`} className="group block">
-                <p className="mb-2 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors group-hover:text-primary">
-                  Previous
-                </p>
-                <p className="font-serif text-lg text-foreground transition-colors group-hover:text-primary line-clamp-1">
-                  <ArrowLeft className="inline-block size-4 mr-2 mb-0.5 transition-transform group-hover:-translate-x-1" />
-                  {prevWork.title}
-                </p>
-              </Link>
-            )}
-          </div>
-
-          {/* 返回列表 */}
-          <div className="shrink-0">
-            <Link
-              href="/works"
-              className="inline-block border border-border px-8 py-3 text-sm font-serif rounded-sm transition-colors hover:bg-muted"
-            >
-              返回所有作品列表
+      {/* ===== 上一篇 / 下一篇 ===== */}
+      {(prevWork || nextWork) && (
+        <nav aria-label="上下篇" className="mx-auto mt-10 grid max-w-5xl gap-4 px-5 md:grid-cols-2 md:px-8">
+          {prevWork ? (
+            <Link href={workHref(prevWork)} className="group flex flex-col gap-2 border border-foreground/25 p-6 transition-colors hover:border-foreground">
+              <span className="font-serif text-xs tracking-[0.12em] text-muted-foreground">← 上一篇</span>
+              <span className="line-clamp-1 font-serif text-lg font-bold tracking-[0.06em] transition-colors group-hover:text-primary">{prevWork.title}</span>
             </Link>
-          </div>
+          ) : <span />}
+          {nextWork && (
+            <Link href={workHref(nextWork)} className="group flex flex-col gap-2 border border-foreground/25 p-6 text-right transition-colors hover:border-foreground">
+              <span className="font-serif text-xs tracking-[0.12em] text-muted-foreground">下一篇 →</span>
+              <span className="line-clamp-1 font-serif text-lg font-bold tracking-[0.06em] transition-colors group-hover:text-primary">{nextWork.title}</span>
+            </Link>
+          )}
+        </nav>
+      )}
 
-          {/* 下一篇 */}
-          <div className="w-full flex-1 md:text-right text-center">
-            {nextWork && (
-              <Link href={`/works/${encodeURIComponent(nextWork.title)}`} className="group block">
-                <p className="mb-2 font-display text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors group-hover:text-primary">
-                  Next
-                </p>
-                <p className="font-serif text-lg text-foreground transition-colors group-hover:text-primary line-clamp-1">
-                  {nextWork.title}
-                  <ArrowRight className="inline-block size-4 ml-2 mb-0.5 transition-transform group-hover:translate-x-1" />
-                </p>
-              </Link>
-            )}
+      {/* ===== 相關文章 ===== */}
+      {related.length > 0 && (
+        <section className="mx-auto mt-24 max-w-7xl px-5 md:px-8">
+          <div className="mb-10 flex items-end justify-between border-b-2 border-foreground pb-4">
+            <h2 className="font-serif text-[1.7rem] font-bold tracking-[0.18em]">延伸閱讀</h2>
+            <Link href="/works" className="font-serif text-sm tracking-[0.18em] text-primary">所有作品 →</Link>
           </div>
-          
-        </div>
-      </nav>
+          <div className="grid gap-10 md:grid-cols-3">
+            {related.map((r) => (
+              <Link key={r.id} href={workHref(r)} className="group flex flex-col gap-3">
+                <div className="aspect-[3/2] overflow-hidden border border-foreground/15">
+                  {r.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.image_url} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+                  ) : (
+                    <WorkPlaceholder category={r.category} title={r.title} />
+                  )}
+                </div>
+                <span className="font-serif text-[13px] tracking-[0.2em] text-primary">{r.reason}</span>
+                <span className="font-serif text-xl font-bold leading-[1.45] tracking-[0.05em] transition-colors group-hover:text-primary">{r.title}</span>
+                <span className="font-serif text-sm tracking-[0.15em] text-muted-foreground">文／{r.author}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

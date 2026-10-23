@@ -1,12 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700;900&display=swap');
 @import "tailwindcss";
 
+/* ============================================================
+   東山文薈・設計系統「稿紙」
+   紙張米白 × 墨黑 × 稿紙朱紅；全站以明體（思源宋體）為主
+   ============================================================ */
+
 @theme {
-  --font-display: var(--font-syne), "Plus Jakarta Sans", sans-serif;
-  --font-sans: var(--font-jakarta), "Noto Sans TC", sans-serif;
-  
-  /* 換成思源宋體 */
-  --font-serif: "Noto Serif TC", serif;
+  /* 字體：標題與內文用明體；介面小字用系統黑體 */
+  --font-serif: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-sans: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -27,6 +31,8 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  /* 稿紙格線色 */
+  --color-grid: hsl(var(--grid));
 
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -35,52 +41,50 @@
 
 @layer base {
   :root {
-    /* 淺色：米白同色系分層 */
-    --background: 40 30% 97%;
-    --foreground: 20 20% 15%;
-    --card: 40 25% 98%;
-    --card-foreground: 20 20% 15%;
-    --popover: 40 25% 98%;
-    --popover-foreground: 20 20% 15%;
-    --primary: 10 70% 45%;
-    --primary-foreground: 40 30% 98%;
-    /* 區塊底色（比背景深一階，同色相） */
-    --secondary: 35 18% 88%;
-    --secondary-foreground: 20 20% 15%;
-    --muted: 35 15% 91%;
-    --muted-foreground: 20 10% 45%;
-    --accent: 35 18% 88%;
-    --accent-foreground: 20 20% 15%;
-    --destructive: 0 70% 45%;
+    --background: 39 38% 94%;      /* 紙 #F4EFE6 */
+    --foreground: 30 12% 11%;      /* 墨 #201C18 */
+    --card: 40 50% 97%;
+    --card-foreground: 30 12% 11%;
+    --popover: 40 50% 97%;
+    --popover-foreground: 30 12% 11%;
+    --primary: 5 63% 42%;          /* 朱 #AF3327 */
+    --primary-foreground: 39 38% 96%;
+    --secondary: 37 30% 89%;
+    --secondary-foreground: 30 12% 11%;
+    --muted: 37 26% 90%;
+    --muted-foreground: 30 8% 36%;
+    --accent: 37 30% 89%;
+    --accent-foreground: 30 12% 11%;
+    --destructive: 0 70% 40%;
     --destructive-foreground: 0 0% 98%;
-    --border: 35 15% 85%;
-    --input: 35 15% 85%;
-    --ring: 10 70% 45%;
-    --radius: 0.5rem;
+    --border: 33 18% 79%;
+    --input: 33 14% 64%;
+    --ring: 5 63% 42%;
+    --grid: 5 55% 48%;
+    --radius: 0px;
   }
 
   .dark {
-    /* 深色：同樣米白色系，只是整體反轉明度，維持同色相分層 */
-    --background: 30 15% 12%;
-    --foreground: 40 25% 92%;
-    --card: 30 14% 15%;
-    --card-foreground: 40 25% 92%;
-    --popover: 30 14% 15%;
-    --popover-foreground: 40 25% 92%;
-    --primary: 10 75% 55%;
-    --primary-foreground: 30 15% 12%;
-    /* 區塊底色（比背景亮一階，同色相，做出層次） */
-    --secondary: 30 12% 19%;
-    --secondary-foreground: 40 25% 92%;
-    --muted: 30 12% 19%;
-    --muted-foreground: 40 10% 65%;
-    --accent: 30 12% 19%;
-    --accent-foreground: 40 25% 92%;
-    --destructive: 0 65% 50%;
+    --background: 30 10% 9%;
+    --foreground: 38 30% 89%;
+    --card: 30 10% 12%;
+    --card-foreground: 38 30% 89%;
+    --popover: 30 10% 12%;
+    --popover-foreground: 38 30% 89%;
+    --primary: 7 70% 63%;
+    --primary-foreground: 30 10% 9%;
+    --secondary: 30 9% 14%;
+    --secondary-foreground: 38 30% 89%;
+    --muted: 30 9% 15%;
+    --muted-foreground: 36 12% 66%;
+    --accent: 30 9% 15%;
+    --accent-foreground: 38 30% 89%;
+    --destructive: 0 65% 58%;
     --destructive-foreground: 0 0% 98%;
-    --border: 30 10% 22%;
-    --input: 30 10% 22%;
-    --ring: 10 75% 55%;
+    --border: 30 8% 24%;
+    --input: 30 8% 38%;
+    --ring: 7 70% 63%;
+    --grid: 7 60% 60%;
   }
 }
 
@@ -88,33 +92,130 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-serif text-foreground;
+    font-feature-settings: "palt" 0;
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
   }
 }
 
-/* 控管全站點擊時淡入淡出的時間 (400ms) */
+/* ===== 稿紙元素 ===== */
+
+/* 稿紙方格底紋（用於沒有圖片的封面、區塊背景） */
+.paper-grid {
+  background-color: hsl(var(--card));
+  background-image:
+    linear-gradient(hsl(var(--grid) / 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--grid) / 0.22) 1px, transparent 1px);
+  background-size: 26px 26px;
+  background-position: -1px -1px;
+}
+
+/* 深色區塊上的淡格線 */
+.paper-grid-faint {
+  background-image:
+    linear-gradient(hsl(var(--background) / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--background) / 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* 頁面最後一個區塊是滿版色塊時，頁尾直接接上 */
+main.flush-footer + footer {
+  margin-top: 0;
+}
+
+/* 直排文字 */
+.text-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* 舊版相容：沒有圖片時的底紋 */
+.placeholder-hatch {
+  background-color: hsl(var(--card));
+  background-image:
+    linear-gradient(hsl(var(--grid) / 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--grid) / 0.2) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+/* 舊版相容：桌機直排標題 */
+@media (min-width: 768px) {
+  .hero-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+}
+
+/* ===== 文章閱讀 ===== */
+
+.article-body {
+  font-size: var(--article-size, 18px);
+}
+
+/* 直排閱讀模式：由右往左捲動 */
+.article-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  height: min(72vh, 680px);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  line-height: 2.1;
+  padding-bottom: 12px;
+  text-align: start;
+}
+.article-vertical p {
+  margin: 0 !important;
+}
+.article-vertical img {
+  max-height: 60%;
+  width: auto;
+  margin: 0 1.5em !important;
+}
+
+/* 鍵盤操作時清楚的焦點框 */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* 控管全站點擊時淡入淡出的時間 */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 400ms;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* ===== 手機端體驗優化 ===== */
 
-/* 1. 防止手機螢幕過窄時，長單字撐破畫面產生橫向滾動條 */
-html, body {
-  overflow-x: hidden;
-  -webkit-tap-highlight-color: transparent; /* 移除手機點擊連結時的醜陋藍色閃爍框 */
+/* ===== 手機端體驗 ===== */
+
+/* 防止長字串撐破畫面；用 clip 不會讓頁首失去黏附效果 */
+html,
+body {
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* 2. 針對手機端，強制表單元件字體為 16px，防止 iOS 自動放大畫面 */
+/* iOS 輸入框小於 16px 會自動放大畫面 */
 @media screen and (max-width: 768px) {
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font-size: 16px !important;
   }
 }
 
-/* 3. 讓手機端滾動更平滑 (慣性滾動) */
-.scroll-smooth {
-  -webkit-overflow-scrolling: touch;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

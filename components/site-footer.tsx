@@ -1,72 +1,49 @@
 import Link from 'next/link'
 import LoginModal from '@/components/login-modal'
 
+const explore = [
+  { href: '/works', label: '作品' },
+  { href: '/issues', label: '期刊' },
+  { href: '/authors', label: '作者' },
+  { href: '/about', label: '關於' },
+  { href: '/submit', label: '投稿' },
+]
+
 export function SiteFooter() {
   return (
-    <footer className="bg-secondary text-secondary-foreground mt-24">
-      <div className="h-[1px] w-full bg-border/50"></div>
-      
-      <div className="mx-auto grid max-w-7xl gap-16 px-5 py-24 md:grid-cols-[2fr_1fr_1fr_1fr] md:px-8">
-        
-        {/* 品牌標誌與理念 */}
-        <div className="flex flex-col gap-6">
-          <p className="font-serif text-3xl font-normal tracking-[0.4em] text-secondary-foreground">
-            文薈
-          </p>
-          <p className="max-w-xs text-sm leading-[2.2] text-secondary-foreground/70">
-            讓校園裡每一種微小的聲音，都有被閱讀的可能。這是屬於學生的東山文薈。
+    <footer className="mt-24 bg-foreground text-background">
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-[1.4fr_1fr_1fr] md:px-8 md:py-16">
+        {/* 刊名 */}
+        <div className="flex flex-col gap-4">
+          <span className="font-serif text-3xl font-bold tracking-[0.1em]">東山文薈</span>
+          <p className="max-w-[18rem] font-serif text-sm leading-[2] text-background/65">
+            讓校園裡每一種微小的聲音，都有被閱讀的可能。
           </p>
         </div>
 
-        {/* 網站導覽 */}
-        <div className="flex flex-col items-start gap-4 text-sm">
-          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-secondary-foreground/50 font-bold">
-            Explore
-          </p>
-          <Link href="/works" className="transition-colors duration-500 hover:text-primary">
-            作品總覽
-          </Link>
-          <Link href="/about" className="transition-colors duration-500 hover:text-primary">
-            關於文薈
-          </Link>
-          <Link href="/submit" className="transition-colors duration-500 hover:text-primary">
-            投稿說明
-          </Link>
-        </div>
+        <nav aria-label="頁尾導覽" className="flex flex-col gap-1">
+          <p className="mb-2 font-serif text-xs text-background/50">目次</p>
+          {explore.map((link) => (
+            <Link key={link.href} href={link.href} className="w-fit py-1.5 font-serif text-[15px] tracking-[0.1em] transition-colors hover:text-primary">
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-        {/* 聯絡資訊（💡 已更新為正式信箱！） */}
-        <div className="flex flex-col items-start gap-4 text-sm">
-          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-secondary-foreground/50 font-bold">
-            Contact
-          </p>
-          <a 
-            href="mailto:dswh108@gmail.com" 
-            className="transition-colors duration-500 hover:text-primary"
-          >
+        <div className="flex flex-col gap-1">
+          <p className="mb-2 font-serif text-xs text-background/50">聯絡</p>
+          <a href="mailto:dswh108@gmail.com" className="w-fit py-1.5 font-sans text-[15px] transition-colors hover:text-primary">
             dswh108@gmail.com
           </a>
-          <p className="text-secondary-foreground/70 text-xs">東山文薈信箱</p>
-        </div>
-
-        {/* 管理系統入口 */}
-        <div className="flex flex-col items-start gap-4 text-sm">
-          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-secondary-foreground/50 font-bold">
-            System
-          </p>
-          <div className="opacity-70 transition-opacity duration-500 hover:opacity-100">
+          <div className="mt-6 w-fit font-serif text-sm text-background/60 transition-colors hover:text-background">
             <LoginModal />
           </div>
         </div>
-
       </div>
-      
-      {/* 版權宣告 */}
+
       <div className="mx-auto max-w-7xl px-5 pb-8 md:px-8">
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-border/50 pt-8 text-[11px] tracking-[0.25em] text-secondary-foreground/60 md:flex-row">
-          <p>© 2026 東山文薈. All Rights Reserved.</p>
-          <p className="font-serif italic tracking-widest text-secondary-foreground/50">
-            The voices of Dongshan.
-          </p>
+        <div className="flex flex-col justify-between gap-2 border-t border-background/20 pt-6 font-sans text-xs tracking-[0.15em] text-background/55 md:flex-row">
+          <p>© {new Date().getFullYear()} 東山文薈</p>
         </div>
       </div>
     </footer>

@@ -25,7 +25,8 @@ export default function LoginModal() {
       });
 
       if (res?.error) {
-        setError("帳號或密碼錯誤，請重新輸入");
+        // 被鎖住時顯示伺服器傳來的訊息，其他情況一律顯示帳密錯誤
+        setError(res.error.includes("15 分鐘") ? res.error : "帳號或密碼錯誤，請重新輸入");
         setIsLoading(false);
       } else {
         setIsOpen(false);
@@ -40,60 +41,71 @@ export default function LoginModal() {
 
   return (
     <>
-      {/* 💡 乾淨俐落的純文字按鈕，樣式跟「作品總覽」完全一致 */}
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="hover:underline text-left"
+        className="text-left font-serif hover:underline"
       >
         管理員登入
       </button>
 
-      {/* 彈出視窗 (Modal) 維持不變 */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 text-left">
-          <div className="w-full max-w-sm rounded-md border border-border bg-[#121212] p-8 shadow-2xl relative text-white animate-in fade-in zoom-in-95 duration-200">
-            
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/40 px-4 text-left backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="login-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
+        >
+          <div className="relative w-full max-w-sm border border-foreground bg-card p-8 text-card-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
-              className="absolute right-4 top-4 text-[#888] hover:text-white transition-colors"
+              aria-label="關閉登入視窗"
+              className="absolute right-2 top-2 flex size-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             >
               ✕
             </button>
 
-            <h2 className="mb-2 text-2xl font-bold text-center font-serif tracking-widest">登入系統</h2>
-            <p className="mb-6 text-center text-xs text-[#888] tracking-widest">文薈管理員專區</p>
-            
+            <p className="mb-5 flex justify-center">
+              <span aria-hidden="true" className="inline-flex size-10 items-center justify-center border-[1.5px] border-primary font-serif text-lg font-bold text-primary">薈</span>
+            </p>
+            <h2 id="login-title" className="mb-1 text-center font-serif text-2xl tracking-[0.12em]">登入系統</h2>
+            <p className="mb-7 text-center text-xs tracking-[0.2em] text-muted-foreground">文薈管理員專區</p>
+
             <form onSubmit={handleLogin} className="flex flex-col gap-4">
-              <div>
-                <label className="block text-sm mb-1.5 text-[#ccc]">電子郵件</label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                電子郵件
                 <input
                   type="email"
                   required
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-sm border border-[#333] bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                  className="min-h-11 w-full border border-input bg-background px-3 text-sm transition-colors focus:border-foreground"
                   placeholder="輸入管理員信箱"
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm mb-1.5 text-[#ccc]">密碼</label>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm">
+                密碼
                 <input
                   type="password"
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-sm border border-[#333] bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                  className="min-h-11 w-full border border-input bg-background px-3 text-sm transition-colors focus:border-foreground"
                   placeholder="輸入密碼"
                 />
-              </div>
-              
-              {error && <p className="text-xs text-red-500 text-center">{error}</p>}
-              
+              </label>
+
+              {error && <p role="alert" className="text-center text-xs text-destructive">{error}</p>}
+
               <button
                 type="submit"
                 disabled={isLoading}
-                className="mt-4 w-full rounded-sm bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="mt-3 min-h-12 w-full bg-foreground px-4 font-serif text-sm tracking-[0.12em] text-background transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {isLoading ? "登入中..." : "確認登入"}
               </button>

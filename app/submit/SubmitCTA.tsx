@@ -9,35 +9,32 @@ export default function SubmitCTA() {
 
   // 💡 當彈出視窗開啟時，鎖定背景不讓頁面滾動
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    if (!isOpen) return;
+    document.body.style.overflow = "hidden";
+    // 按 Esc 也能關閉表單
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = "unset";
+      window.removeEventListener("keydown", onKey);
     };
   }, [isOpen]);
 
   return (
     <>
-      <div className="mb-12 text-center md:text-left">
-        <p className="mb-3 font-mono text-xs tracking-[0.2em] text-primary uppercase">
-          READY TO SUBMIT?
+      <div className="flex flex-col items-center gap-5 text-center">
+        <h2 className="font-serif text-3xl font-bold tracking-[0.06em] md:text-4xl">準備好了嗎？</h2>
+        <p className="max-w-md font-serif text-[15px] leading-[2] text-muted-foreground">
+          請確實填寫基本資料，並使用學校核發的學生信箱投稿。
         </p>
-        <h2 className="font-serif text-3xl font-normal md:text-4xl tracking-wide text-foreground">
-          準備好讓作品被看見了嗎？
-        </h2>
-        <p className="mt-3 mb-8 text-sm text-muted-foreground leading-relaxed">
-          請確實填寫基本資料，並使用學校核發之學生信箱進行投稿。
-        </p>
-        
-        {/* 💡 雜誌風質感觸發按鈕 */}
-        <button 
+        <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          className="group inline-flex items-center gap-3 rounded-sm bg-primary px-8 py-4 font-serif text-xs font-medium tracking-[0.2em] text-primary-foreground transition-all hover:bg-primary/90 shadow-sm cursor-pointer"
+          className="group mt-2 inline-flex min-h-14 cursor-pointer items-center gap-3 bg-primary px-10 font-serif text-base tracking-[0.12em] text-primary-foreground transition-opacity hover:opacity-90"
         >
-          開啟投稿表單 
+          開始投稿
           <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
         </button>
       </div>
@@ -46,12 +43,17 @@ export default function SubmitCTA() {
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md md:p-8 animate-in fade-in duration-200">
           
-          <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-card p-6 md:p-10 shadow-2xl text-foreground">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-dialog-title"
+            className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto border border-foreground bg-card p-6 text-foreground shadow-2xl md:p-10"
+          >
             
             {/* 💡 關閉按鈕 (固定在右上角，樣式優化) */}
             <button 
               onClick={() => setIsOpen(false)}
-              className="absolute right-5 top-5 z-50 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+              className="absolute right-3 top-3 z-50 flex size-11 cursor-pointer items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="關閉表單"
             >
               <X className="size-5" />
@@ -59,7 +61,7 @@ export default function SubmitCTA() {
             
             {/* 彈窗內容 Header */}
             <div className="mb-8 mt-2 text-center">
-              <h3 className="font-serif text-3xl font-normal tracking-wide text-foreground">學生投稿專區</h3>
+              <h3 id="submit-dialog-title" className="font-serif text-3xl font-bold tracking-[0.1em] text-foreground">投稿</h3>
               <p className="mt-2 text-xs text-muted-foreground tracking-wider">請完整填寫以下資訊，完成投稿。</p>
             </div>
 

@@ -15,3 +15,6 @@ node_modules
 .DS_Store
 .vercel
 .env*
+
+# 本機備份（不上傳）
+_backup/

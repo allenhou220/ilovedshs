@@ -33,8 +33,8 @@ export function AdminList({ works }: { works: AdminWork[] }) {
   const sources = ['全部', '文薈成員創作', '學生投稿']
   const uniqueCategories = ['全部', ...Array.from(new Set(works.map((w) => w.category || '散文')))]
 
-  // 2. 依 sort_order 排序
-  const sorted = [...works].sort((a, b) => (a.sort_order ?? a.id) - (b.sort_order ?? b.id))
+  // 2. 伺服器端已依照正確順序排好，直接使用
+  const sorted = works
 
   // 3. 多重交集過濾邏輯
   const filtered = sorted.filter((work) => {
@@ -77,20 +77,30 @@ export function AdminList({ works }: { works: AdminWork[] }) {
     setDeletingId(id)
     try {
       await deleteWorkAction(id)
+    } catch {
+      alert('刪除失敗，請重新整理頁面後再試一次。')
     } finally {
       setDeletingId(null)
     }
   }
 
   function handleToggleFeatured(id: number, current: boolean) {
-    startTransition(() => {
-      toggleFeaturedAction(id, !current)
+    startTransition(async () => {
+      try {
+        await toggleFeaturedAction(id, !current)
+      } catch {
+        alert('設定精選失敗，請重新整理頁面後再試一次。')
+      }
     })
   }
 
   function handleMove(id: number, direction: 'up' | 'down') {
-    startTransition(() => {
-      moveWorkAction(id, direction)
+    startTransition(async () => {
+      try {
+        await moveWorkAction(id, direction)
+      } catch {
+        alert('調整順序失敗，請重新整理頁面後再試一次。')
+      }
     })
   }
 
@@ -99,8 +109,8 @@ export function AdminList({ works }: { works: AdminWork[] }) {
       {/* 電商風格多重篩選控制列 */}
       <div
         style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
+          background: 'hsl(var(--card))',
+          border: '1px solid hsl(var(--border))',
           borderRadius: '8px',
           padding: '16px',
           marginBottom: '20px',
@@ -113,7 +123,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
           
           {/* 1. 期數篩選 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', color: '#a1a1aa' }}>刊物期數</label>
+            <label style={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}>刊物期數</label>
             <select
               value={selectedIssue}
               onChange={(e) => setSelectedIssue(e.target.value)}
@@ -121,9 +131,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                 padding: '6px 12px',
                 fontSize: '13px',
                 borderRadius: '4px',
-                border: '1px solid #3f3f46',
-                background: '#09090b',
-                color: '#fff',
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
               }}
             >
@@ -137,7 +147,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
 
           {/* 2. 來源篩選 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', color: '#a1a1aa' }}>文章來源</label>
+            <label style={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}>文章來源</label>
             <select
               value={selectedSource}
               onChange={(e) => setSelectedSource(e.target.value)}
@@ -145,9 +155,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                 padding: '6px 12px',
                 fontSize: '13px',
                 borderRadius: '4px',
-                border: '1px solid #3f3f46',
-                background: '#09090b',
-                color: '#fff',
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
               }}
             >
@@ -161,7 +171,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
 
           {/* 3. 文體分類篩選 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', color: '#a1a1aa' }}>文體類別</label>
+            <label style={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}>文體類別</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -169,9 +179,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                 padding: '6px 12px',
                 fontSize: '13px',
                 borderRadius: '4px',
-                border: '1px solid #3f3f46',
-                background: '#09090b',
-                color: '#fff',
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
               }}
             >
@@ -185,7 +195,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
 
           {/* 4. 關鍵字搜尋 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '200px' }}>
-            <label style={{ fontSize: '11px', color: '#a1a1aa' }}>關鍵字搜尋</label>
+            <label style={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}>關鍵字搜尋</label>
             <input
               type="text"
               placeholder="搜尋標題、作者名稱..."
@@ -195,9 +205,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                 padding: '6px 12px',
                 fontSize: '13px',
                 borderRadius: '4px',
-                border: '1px solid #3f3f46',
-                background: '#09090b',
-                color: '#fff',
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
               }}
             />
           </div>
@@ -211,9 +221,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                 padding: '6px 12px',
                 fontSize: '12px',
                 borderRadius: '4px',
-                border: '1px solid #ef4444',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#f87171',
+                border: '1px solid hsl(var(--destructive))',
+                background: 'hsl(var(--destructive) / 0.1)',
+                color: 'hsl(var(--destructive))',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -227,13 +237,13 @@ export function AdminList({ works }: { works: AdminWork[] }) {
       </div>
 
       {!canReorder && (
-        <p style={{ fontSize: '12px', color: '#a1a1aa', marginBottom: '10px' }}>
+        <p style={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '10px' }}>
           💡 目前處於多重篩選狀態；若要調整文章上下順序，請先點擊「清除篩選」。
         </p>
       )}
 
       {/* 文章列表 */}
-      <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #2a2a2a', borderRadius: '6px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid hsl(var(--border))', borderRadius: '6px', overflow: 'hidden' }}>
         {filtered.map((work, index) => {
           const currentSource = work.source_type || work.sourceType || '文薈成員創作'
           const currentIssue = work.issue || '第 1 期'
@@ -247,7 +257,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                 justifyContent: 'space-between',
                 gap: '16px',
                 padding: '14px 16px',
-                borderBottom: '1px solid #2a2a2a',
+                borderBottom: '1px solid hsl(var(--border))',
                 opacity: isPending ? 0.6 : 1,
               }}
             >
@@ -258,9 +268,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                       onClick={() => handleMove(work.id, 'up')}
                       disabled={index === 0 || isPending}
                       style={{
-                        border: '1px solid #333',
+                        border: '1px solid hsl(var(--border))',
                         background: 'transparent',
-                        color: index === 0 ? '#444' : '#ccc',
+                        color: index === 0 ? 'hsl(var(--border))' : 'hsl(var(--muted-foreground))',
                         cursor: index === 0 ? 'not-allowed' : 'pointer',
                         borderRadius: '3px',
                         fontSize: '11px',
@@ -273,9 +283,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                       onClick={() => handleMove(work.id, 'down')}
                       disabled={index === filtered.length - 1 || isPending}
                       style={{
-                        border: '1px solid #333',
+                        border: '1px solid hsl(var(--border))',
                         background: 'transparent',
-                        color: index === filtered.length - 1 ? '#444' : '#ccc',
+                        color: index === filtered.length - 1 ? 'hsl(var(--border))' : 'hsl(var(--muted-foreground))',
                         cursor: index === filtered.length - 1 ? 'not-allowed' : 'pointer',
                         borderRadius: '3px',
                         fontSize: '11px',
@@ -292,14 +302,14 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                     width: '48px',
                     height: '48px',
                     borderRadius: '4px',
-                    background: '#1a1a1a',
+                    background: 'hsl(var(--card))',
                     flexShrink: 0,
                     overflow: 'hidden',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '10px',
-                    color: '#666',
+                    color: 'hsl(var(--muted-foreground))',
                   }}
                 >
                   {work.image_url ? (
@@ -312,17 +322,17 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                   <p style={{ fontWeight: 'bold', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {work.title}
                     {work.featured && (
-                      <span style={{ fontSize: '11px', background: '#b45309', color: '#fff', padding: '1px 6px', borderRadius: '3px' }}>精選</span>
+                      <span style={{ fontSize: '11px', background: 'hsl(var(--primary))', color: 'hsl(var(--foreground))', padding: '1px 6px', borderRadius: '3px' }}>精選</span>
                     )}
                   </p>
                   
-                  <div style={{ fontSize: '12px', color: '#888', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    <span style={{ background: '#27272a', color: '#a1a1aa', padding: '1px 6px', borderRadius: '3px', fontSize: '11px' }}>
+                  <div style={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <span style={{ background: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))', padding: '1px 6px', borderRadius: '3px', fontSize: '11px' }}>
                       {currentIssue}
                     </span>
                     <span style={{ 
-                      background: currentSource === '學生投稿' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(59, 130, 246, 0.15)', 
-                      color: currentSource === '學生投稿' ? '#fde047' : '#93c5fd', 
+                      background: currentSource === '學生投稿' ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--secondary))', 
+                      color: currentSource === '學生投稿' ? 'hsl(var(--primary))' : 'hsl(var(--foreground))', 
                       padding: '1px 6px', 
                       borderRadius: '3px', 
                       fontSize: '11px' 
@@ -343,10 +353,10 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                   style={{
                     padding: '6px 12px',
                     fontSize: '13px',
-                    border: work.featured ? '1px solid #b45309' : '1px solid #333',
+                    border: work.featured ? '1px solid hsl(var(--primary))' : '1px solid hsl(var(--border))',
                     borderRadius: '4px',
                     background: 'transparent',
-                    color: work.featured ? '#fbbf24' : '#ccc',
+                    color: work.featured ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                     cursor: isPending ? 'not-allowed' : 'pointer',
                   }}
                 >
@@ -357,9 +367,9 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                   style={{
                     padding: '6px 12px',
                     fontSize: '13px',
-                    border: '1px solid #333',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '4px',
-                    color: '#fff',
+                    color: 'hsl(var(--foreground))',
                     textDecoration: 'none',
                   }}
                 >
@@ -371,10 +381,10 @@ export function AdminList({ works }: { works: AdminWork[] }) {
                   style={{
                     padding: '6px 12px',
                     fontSize: '13px',
-                    border: '1px solid #7f1d1d',
+                    border: '1px solid hsl(var(--destructive) / 0.5)',
                     borderRadius: '4px',
                     background: 'transparent',
-                    color: '#f87171',
+                    color: 'hsl(var(--destructive))',
                     cursor: deletingId === work.id ? 'not-allowed' : 'pointer',
                     opacity: deletingId === work.id ? 0.5 : 1,
                   }}
@@ -386,7 +396,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
           )
         })}
         {filtered.length === 0 && (
-          <p style={{ padding: '32px', textAlign: 'center', color: '#666', fontSize: '14px' }}>沒有符合條件的文章</p>
+          <p style={{ padding: '32px', textAlign: 'center', color: 'hsl(var(--muted-foreground))', fontSize: '14px' }}>沒有符合條件的文章</p>
         )}
       </div>
     </div>

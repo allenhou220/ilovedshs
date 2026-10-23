@@ -1,25 +1,32 @@
 import { sql } from "@vercel/postgres";
 import WorksClient from "./WorksClient";
+import { stripHtml } from "@/lib/text";
+import { toSummary } from "@/lib/queries";
 
 // 確保每次重整都抓取最新文章，避免 Next.js 任何快取干擾
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function WorkPage() {
-  let works = [];
-  
+  let works: any[] = [];
+
   try {
-    // 從資料庫撈出所有文章
-    // 💡 關鍵修改：加入 NULLS LAST 處理空值，並加上 id DESC 確保順序穩定性
     const { rows } = await sql`
-      SELECT * FROM works 
+      SELECT id, title, author, category, issue, source_type, image_url, content
+      FROM works
       ORDER BY sort_order ASC NULLS LAST, id DESC
     `;
-    works = rows;
+
+    // 在伺服器端先把 HTML 轉成純文字：
+    // 瀏覽器只會收到「摘要」和「搜尋用文字」，不再收到整份 HTML（漫畫的圖片資料可能高達數 MB）
+    works = rows.map((row) => ({
+      ...toSummary(row, 200),
+      searchText: stripHtml(row.content || '').toLowerCase(),
+    }));
   } catch (error) {
     console.error("讀取資料庫失敗:", error);
   }
 
-  // 將資料庫撈出來的文章，以 props 的方式傳給含有互動功能的 Client 元件
+  // 將資料以 props 的方式傳給含有互動功能的 Client 元件
   return <WorksClient dbWorks={works} />;
 }

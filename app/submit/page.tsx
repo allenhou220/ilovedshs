@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { FileText, PenLine, BookOpen, Mic, Palette } from 'lucide-react'
 import SubmitCTA from './SubmitCTA'
-import { getSubmissionStatus } from "@/lib/actions"
+import { getSiteSettings, getSubmissionStatus } from "@/lib/queries"
 import Link from "next/link"
+import { ManuscriptTitle, SectionTitle, cnNumeral } from "@/components/editorial"
 
 export const metadata: Metadata = { 
   title: '投稿說明', 
@@ -10,32 +10,43 @@ export const metadata: Metadata = {
 }
 
 const types = [
-  { icon: PenLine, title: '散文', text: '記錄日常的細碎微光，在真誠的文字裡辨認生活真實的筆觸。' },
-  { icon: FileText, title: '新詩', text: '用最凝練的句式，捕捉瞬間的意象、隱喻與呼吸節奏。' },
-  { icon: BookOpen, title: '小說', text: '構築虛構的世界，在情節推移中折射青春的複雜角落。' },
-  { icon: Mic, title: '採訪', text: '走進他人的故事，記錄每一次真誠對話裡的溫度與傾聽。' },
-  { icon: Palette, title: '漫畫', text: '以視覺與線條作為鏡頭，延伸圖文交織的流暢圖像敘述。' },
+  { title: '散文', text: '記錄日常的細碎微光，在真誠的文字裡辨認生活真實的筆觸。' },
+  { title: '新詩', text: '用最凝練的句式，捕捉瞬間的意象、隱喻與呼吸節奏。' },
+  { title: '小說', text: '構築虛構的世界，在情節推移中折射青春的複雜角落。' },
+  { title: '採訪', text: '走進他人的故事，記錄每一次真誠對話裡的溫度與傾聽。' },
+  { title: '漫畫', text: '以視覺與線條作為鏡頭，延伸圖文交織的流暢圖像敘述。' },
 ]
 
+const RULES = [
+  '作品須為本人原創，未曾公開發表或於其他刊物獲獎。',
+  '來稿將由文薈編輯團隊進行審閱，作品刊登後會出現在「作品典藏」。',
+  '漫畫類別因圖像檔案格式與解析度需求，請直接將作品檔與基本資料寄至文薈電子信箱。',
+]
+
+// 以台灣時間判斷截稿日是否已過，過期就不顯示
+function upcomingDeadline(value?: string | null) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) // YYYY-MM-DD
+  return value >= today ? value.replace(/-/g, ' / ') : null
+}
+
 export default async function SubmitPage() {
-  const isOpen = await getSubmissionStatus();
+  const [isOpen, settings] = await Promise.all([getSubmissionStatus(), getSiteSettings()]);
+  const deadline = upcomingDeadline(settings?.submission_deadline);
 
   if (!isOpen) {
     return (
-      <main className="flex min-h-[80vh] flex-col items-center justify-center px-5 py-16 md:px-8">
-        <div className="max-w-2xl text-center">
-          <p className="mb-5 font-mono text-xs tracking-[0.22em] text-primary">SUBMISSIONS CLOSED / 暫停徵稿</p>
-          <h1 className="mb-6 font-serif text-5xl font-black leading-[1.1] md:text-7xl text-foreground">
-            目前暫不開放投稿
-          </h1>
-          <p className="mb-10 font-serif text-lg leading-loose text-muted-foreground font-light">
-            本期文薈徵稿已順利結束或暫停收件。感謝所有願意把故事交給我們的同學，請密切留意後續的發行公告！
-          </p>
-          <Link 
-            href="/" 
-            className="inline-flex items-center justify-center rounded-sm bg-primary px-8 py-3 font-serif text-sm font-medium tracking-wider text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            返回首頁
+      <main className="mx-auto flex min-h-[70vh] max-w-3xl flex-col items-center justify-center gap-8 px-5 py-24 text-center">
+        <h1 className="font-serif text-4xl font-bold tracking-[0.1em] md:text-5xl">目前暫停徵稿</h1>
+        <p className="max-w-md font-serif text-base leading-[2] text-muted-foreground">
+          本期徵稿已經結束。謝謝所有願意把故事交給我們的同學，下一期再見！
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href="/works" className="inline-flex min-h-12 items-center bg-foreground px-7 font-serif text-[15px] tracking-[0.1em] text-background transition-opacity hover:opacity-90">
+            閱讀作品
+          </Link>
+          <Link href="/" className="inline-flex min-h-12 items-center border border-foreground px-7 font-serif text-[15px] tracking-[0.1em] transition-colors hover:bg-foreground hover:text-background">
+            回到首頁
           </Link>
         </div>
       </main>
@@ -43,73 +54,57 @@ export default async function SubmitPage() {
   }
 
   return (
-    <main className="bg-background text-foreground">
-      {/* ===== 頂部標題區塊 ===== */}
-      <section className="mx-auto max-w-7xl px-5 py-16 md:px-8 md:py-24">
-        <div className="grid gap-10 border-b border-border pb-14 md:grid-cols-[1.1fr_1fr] md:items-end">
-          <div>
-            <p className="mb-5 font-mono text-xs tracking-[0.22em] text-primary">OPEN CALL / 春季徵稿</p>
-            <h1 className="text-balance font-serif text-6xl font-black leading-[1.1] md:text-8xl">
-              把你的故事<br />交給我們
-            </h1>
-          </div>
-          <div className="flex flex-col gap-6">
-            <p className="text-lg leading-loose text-muted-foreground font-serif font-light">
-              無論是一場午後的雨、一段沒有說完的對話，或一個只存在於想像中的世界，都值得被仔細閱讀。
-            </p>
-            
-            <div className="flex flex-col gap-1 border-l-2 border-primary pl-4 py-1">
-              <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-                DEADLINE / 截稿日期
-              </span>
-              <span className="font-mono text-2xl font-bold tracking-widest text-foreground tabular-nums">
-                2026 / 05 / 31
-              </span>
+    <main className="flush-footer">
+      {/* ===== 開篇 ===== */}
+      <section className="mx-auto grid max-w-7xl gap-12 px-5 py-14 md:px-8 md:py-20 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-20">
+        <div className="flex flex-col items-start gap-6">
+          <p className="font-serif text-sm font-bold tracking-[0.1em] text-primary">
+            徵稿中
+          </p>
+          <ManuscriptTitle text={'把你的故事\n交給我們'} />
+        </div>
+        <div className="flex flex-col justify-end gap-8 lg:pb-2">
+          <p className="max-w-xl font-serif text-[19px] leading-[2.15] text-foreground/90">
+            無論是一場午後的雨、一段沒有說完的對話，或一個只存在於想像中的世界，都值得被仔細閱讀。
+          </p>
+          {deadline && (
+            <div className="flex w-fit items-center gap-5 border-2 border-foreground px-6 py-4">
+              <span className="font-serif text-sm font-bold tracking-[0.15em] text-primary">截稿</span>
+              <span aria-hidden="true" className="h-8 w-px bg-foreground/30" />
+              <span className="font-serif text-2xl font-bold tracking-[0.12em] tabular-nums">{deadline}</span>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* ===== 徵稿類別區塊（平分 5 欄、無字數標示） ===== */}
-      <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-28">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-          {types.map(({ icon: Icon, title, text }, i) => (
-            <article 
-              key={title} 
-              className="group flex min-h-[220px] flex-col justify-between border border-border bg-card p-6 md:p-8 transition-transform duration-500 ease-out hover:-translate-y-2"
-            >
-              <div className="flex items-center justify-between">
-                <Icon className="size-5 text-primary opacity-80 transition-transform duration-500 group-hover:scale-110" strokeWidth={1.5} />
-                <span className="font-mono text-xs tracking-widest text-muted-foreground/70">0{i + 1}</span>
-              </div>
-              <div>
-                <h2 className="mb-3 font-serif text-2xl md:text-3xl font-light text-foreground">{title}</h2>
-                <p className="font-serif text-xs leading-relaxed text-muted-foreground font-light">{text}</p>
-              </div>
+      {/* ===== 徵稿類別 ===== */}
+      <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
+        <SectionTitle no={1} title="徵稿類別" />
+        <div className="grid gap-px border border-foreground/20 bg-foreground/20 grid-cols-2 lg:grid-cols-5">
+          {types.map(({ title, text }) => (
+            <article key={title} className="flex flex-col gap-3 bg-background p-5 md:p-7 last:col-span-2 lg:last:col-span-1">
+              <span className="font-serif text-2xl font-bold">{title}</span>
+              <p className="font-serif text-[14px] leading-[1.9] text-muted-foreground">{text}</p>
             </article>
           ))}
         </div>
-        
-        {/* ===== 投稿須知 ===== */}
-        <div className="mt-24 grid gap-12 border-t border-border pt-16 md:grid-cols-[0.7fr_1.3fr]">
-          <h2 className="font-serif text-4xl font-light">投稿須知</h2>
-          <ol className="flex flex-col">
-            {[
-              '作品須為本人原創，未曾公開發表或於其他刊物獲獎。',
-              '來稿將由文薈編輯團隊進行審閱，審核結果將透過電子郵件通知。',
-              '漫畫類別因圖像檔案格式與解析度需求，請直接將作品檔與基本資料寄至文薈電子信箱。'
-            ].map((item, i) => (
-              <li key={item} className="flex gap-6 border-b border-border/50 py-5 font-serif text-sm leading-relaxed text-foreground/90 first:pt-0">
-                <span className="font-mono text-xs font-normal tracking-widest text-primary">0{i + 1}</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
       </section>
 
-      {/* ===== 投稿表單 CTA 區塊 ===== */}
-      <section className="border-t border-border bg-card py-20">
+      {/* ===== 投稿須知 ===== */}
+      <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
+        <SectionTitle no={2} title="投稿須知" />
+        <ol className="max-w-3xl">
+          {RULES.map((item, i) => (
+            <li key={item} className="flex gap-5 border-b border-foreground/20 py-5 font-serif text-[16px] leading-[1.9]">
+              <span className="shrink-0 font-serif text-primary">{cnNumeral(i + 1)}</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ===== 投稿表單 ===== */}
+      <section className="bg-secondary py-20 md:py-24">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
           <SubmitCTA />
         </div>

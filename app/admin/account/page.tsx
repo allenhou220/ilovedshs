@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session) redirect("/");
 
   return (
     <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">

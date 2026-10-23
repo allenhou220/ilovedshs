@@ -7,17 +7,19 @@ import { updateWorkAction } from "@/lib/actions";
 
 export default async function EditWorkPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session) redirect("/");
 
   const { id } = await params;
-  const { rows } = await sql`SELECT * FROM works WHERE id = ${id}`;
+  if (!/^\d+$/.test(id)) notFound();
+
+  const { rows } = await sql`SELECT * FROM works WHERE id = ${Number(id)}`;
   const work = rows[0];
   if (!work) notFound();
 
   const boundAction = updateWorkAction.bind(null, work.id);
 
   return (
-    <div style={{ padding: "40px", background: "#121212", color: "#fff", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "40px", background: "hsl(var(--background))", color: "hsl(var(--foreground))", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: "600px", margin: "0 auto" }}>
         <h1 style={{ fontSize: "24px", marginBottom: "24px", fontWeight: "bold" }}>編輯文章</h1>
         <AdminForm

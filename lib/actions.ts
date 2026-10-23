@@ -7,23 +7,20 @@ import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
+import { sanitizeHtml, escapeHtml } from "./sanitize-html";
+import { ensureSchema } from "./db";
+import { getSubmissionStatus } from "./queries";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_to_pass_build");
+
+// ===== 共用：權限檢查 =====
 
 async function requireSession() {
   const session = await getServerSession(authOptions);
   if (!session) {
     throw new Error("未登入");
   }
-}
-
-async function ensureColumnsExist() {
-  try {
-    await sql`ALTER TABLE works ADD COLUMN IF NOT EXISTS issue TEXT DEFAULT '';`;
-    await sql`ALTER TABLE works ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT '文薈成員創作';`;
-  } catch (error) {
-    console.error("更新資料庫欄位失敗:", error);
-  }
+  return session;
 }
 
 async function requireAdmin() {
@@ -34,138 +31,160 @@ async function requireAdmin() {
   return session;
 }
 
+const VALID_ROLES = new Set(["admin", "editor"]);
+const STUDENT_EMAIL_RE = /^[a-z0-9._-]+@stu\.tshs\.tp\.edu\.tw$/i;
+
+// ===== 共用：圖片上傳 =====
+
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/avif": "avif",
+};
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+// 只接受真正的圖片格式，並重新命名，避免有人上傳 .html 等檔案放到公開空間
+async function uploadImage(file: File, folder: string) {
+  const ext = ALLOWED_IMAGE_TYPES[file.type];
+  if (!ext) throw new Error("只能上傳 JPG、PNG、GIF、WebP 或 AVIF 圖片");
+  if (file.size > MAX_IMAGE_BYTES) throw new Error("圖片不可超過 10MB");
+
+  const base = (file.name.replace(/\.[^.]*$/, "").replace(/[^a-zA-Z0-9-]/g, "_") || "image").slice(0, 60);
+  const blob = await put(`${folder}/${Date.now()}-${base}.${ext}`, file, {
+    access: "public",
+    contentType: file.type,
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+  });
+  return blob.url;
+}
+
+/** 表單裡若有選新圖片就上傳，否則沿用舊圖 */
+async function resolveImage(formData: FormData, folder: string, fallback = "") {
+  const imageFile = formData.get("image") as File | null;
+  if (imageFile && typeof imageFile === "object" && imageFile.size > 0) {
+    return uploadImage(imageFile, folder);
+  }
+  return fallback;
+}
+
+// ===== 共用：重新整理快取 =====
+
+function revalidateWorks(extraPaths: string[] = []) {
+  for (const path of ["/", "/works", "/admin", "/admin/works", ...extraPaths]) {
+    revalidatePath(path);
+  }
+}
+
+// ===== 共用：讀取文章表單 =====
+
+function readWorkForm(formData: FormData, defaultSource: string) {
+  const sourceType = String(formData.get("sourceType") || defaultSource).trim();
+  return {
+    title: String(formData.get("title") || "").trim(),
+    author: String(formData.get("author") || "").trim() || "匿名",
+    category: String(formData.get("category") || "散文"),
+    sourceType,
+    issue: sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim(),
+    content: sanitizeHtml(String(formData.get("content") || "").trim()),
+    existingImage: String(formData.get("existingImage") || ""),
+  };
+}
+
+async function insertWork(work: ReturnType<typeof readWorkForm>, imageUrl: string): Promise<number> {
+  // 新文章排在最前面
+  const { rows } = await sql`SELECT MIN(sort_order) AS min_order FROM works`;
+  const minOrder = (rows[0]?.min_order ?? 1) - 1;
+
+  const inserted = await sql`
+    INSERT INTO works (title, author, category, issue, source_type, content, image_url, sort_order)
+    VALUES (${work.title}, ${work.author}, ${work.category}, ${work.issue}, ${work.sourceType}, ${work.content}, ${imageUrl}, ${minOrder})
+    RETURNING id
+  `;
+  return inserted.rows[0]?.id;
+}
+
 // ===== 文章管理功能 =====
 
 export async function createWorkAction(formData: FormData) {
   await requireSession();
-  await ensureColumnsExist();
+  await ensureSchema();
 
-  const title = String(formData.get("title") || "").trim();
-  const author = String(formData.get("author") || "").trim() || "匿名";
-  const category = String(formData.get("category") || "散文");
-  const sourceType = String(formData.get("sourceType") || "文薈成員創作").trim();
-  
-  const issue = sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim();
-  const content = String(formData.get("content") || "").trim();
-  const imageFile = formData.get("image") as File | null;
+  const work = readWorkForm(formData, "文薈成員創作");
+  if (!work.title || !work.content) return;
 
-  if (!title || !content) return;
+  const imageUrl = await resolveImage(formData, "works");
+  await insertWork(work, imageUrl);
 
-  let imageUrl = "";
-  if (imageFile && imageFile.size > 0) {
-    const uniqueFilename = `${Date.now()}-${imageFile.name}`;
-    const blob = await put(`works/${uniqueFilename}`, imageFile, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    imageUrl = blob.url;
-  }
-
-  const { rows } = await sql`SELECT MIN(sort_order) as min_order FROM works`;
-  const minOrder = (rows[0]?.min_order ?? 1) - 1;
-
-  await sql`
-    INSERT INTO works (title, author, category, issue, source_type, content, image_url, sort_order)
-    VALUES (${title}, ${author}, ${category}, ${issue}, ${sourceType}, ${content}, ${imageUrl}, ${minOrder})
-  `;
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/works");
-  revalidatePath("/works");
-  revalidatePath("/");
+  revalidateWorks();
   redirect("/admin/works");
 }
 
 export async function updateWorkAction(id: number, formData: FormData) {
   await requireSession();
-  await ensureColumnsExist();
+  await ensureSchema();
 
-  const title = String(formData.get("title") || "").trim();
-  const author = String(formData.get("author") || "").trim() || "匿名";
-  const category = String(formData.get("category") || "散文");
-  const sourceType = String(formData.get("sourceType") || "文薈成員創作").trim();
-  
-  const issue = sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim();
-  const content = String(formData.get("content") || "").trim();
-  const existingImageUrl = String(formData.get("existingImage") || "");
-  const imageFile = formData.get("image") as File | null;
+  const work = readWorkForm(formData, "文薈成員創作");
+  if (!work.title || !work.content) return;
 
-  if (!title || !content) return;
-
-  let imageUrl = existingImageUrl;
-  if (imageFile && imageFile.size > 0) {
-    const uniqueFilename = `${Date.now()}-${imageFile.name}`;
-    const blob = await put(`works/${uniqueFilename}`, imageFile, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    imageUrl = blob.url;
-  }
+  const imageUrl = await resolveImage(formData, "works", work.existingImage);
 
   await sql`
     UPDATE works
-    SET title = ${title}, author = ${author}, category = ${category}, issue = ${issue}, source_type = ${sourceType}, content = ${content}, image_url = ${imageUrl}
+    SET title = ${work.title}, author = ${work.author}, category = ${work.category},
+        issue = ${work.issue}, source_type = ${work.sourceType}, content = ${work.content},
+        image_url = ${imageUrl}
     WHERE id = ${id}
   `;
 
-  revalidatePath("/admin");
-  revalidatePath("/admin/works");
-  revalidatePath("/works");
-  revalidatePath("/");
-  revalidatePath(`/works/${id}`);
+  revalidateWorks([`/works/${encodeURIComponent(work.title)}`]);
   redirect("/admin/works");
 }
 
 export async function deleteWorkAction(id: number) {
   await requireSession();
   await sql`DELETE FROM works WHERE id = ${id}`;
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/works");
-  revalidatePath("/works");
-  revalidatePath("/");
+  revalidateWorks();
 }
 
 export async function toggleFeaturedAction(id: number, nextFeatured: boolean) {
   await requireSession();
   if (nextFeatured) {
-    await sql`UPDATE works SET featured = false WHERE featured = true`;
+    // 一次完成：這篇設為精選、其他全部取消（同一時間只會有一篇精選）
+    await sql`UPDATE works SET featured = (id = ${id}) WHERE featured = true OR id = ${id}`;
+  } else {
+    await sql`UPDATE works SET featured = false WHERE id = ${id}`;
   }
-  await sql`UPDATE works SET featured = ${nextFeatured} WHERE id = ${id}`;
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/works");
-  revalidatePath("/works");
-  revalidatePath("/");
+  revalidateWorks();
 }
 
 export async function moveWorkAction(id: number, direction: "up" | "down") {
   await requireSession();
+
+  // 與前台、後台列表使用「完全相同」的排序規則
   const { rows } = await sql`
-    SELECT id, sort_order 
-    FROM works 
-    ORDER BY COALESCE(sort_order, id) ASC
+    SELECT id FROM works
+    ORDER BY sort_order ASC NULLS LAST, id DESC
   `;
-  
-  const index = rows.findIndex((r) => r.id === id);
+  const ids: number[] = rows.map((r) => Number(r.id));
+
+  const index = ids.indexOf(Number(id));
   if (index === -1) return;
-
   const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (swapIndex < 0 || swapIndex >= rows.length) return;
+  if (swapIndex < 0 || swapIndex >= ids.length) return;
 
-  const newOrder = [...rows];
-  const temp = newOrder[index];
-  newOrder[index] = newOrder[swapIndex];
-  newOrder[swapIndex] = temp;
+  [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
 
-  await Promise.all(newOrder.map((work, i) => {
-    return sql`UPDATE works SET sort_order = ${i + 1} WHERE id = ${work.id}`;
-  }));
+  // 以前是每篇文章各送一次 UPDATE，現在一次更新全部
+  await sql`
+    UPDATE works AS w
+    SET sort_order = v.ord
+    FROM unnest(${ids as any}::int[]) WITH ORDINALITY AS v(id, ord)
+    WHERE w.id = v.id
+  `;
 
-  revalidatePath("/admin");
-  revalidatePath("/admin/works");
-  revalidatePath("/works");
-  revalidatePath("/");
+  revalidateWorks();
 }
 
 export async function uploadEditorImageAction(formData: FormData) {
@@ -175,13 +194,12 @@ export async function uploadEditorImageAction(formData: FormData) {
     return { error: "未選擇圖片" };
   }
 
-  const uniqueFilename = `editor/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-  const blob = await put(uniqueFilename, file, {
-    access: "public",
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
-
-  return { url: blob.url };
+  try {
+    const url = await uploadImage(file, "editor");
+    return { url };
+  } catch (error: any) {
+    return { error: error?.message || "圖片上傳失敗" };
+  }
 }
 
 // ===== 帳號管理功能 =====
@@ -189,20 +207,21 @@ export async function uploadEditorImageAction(formData: FormData) {
 export async function createUserAction(formData: FormData) {
   await requireAdmin();
   const bcrypt = (await import("bcryptjs")).default;
-  const email = String(formData.get("email") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
   const role = String(formData.get("role") || "editor");
 
   if (!email || !password) return { error: "請填寫完整資訊" };
+  if (!VALID_ROLES.has(role)) return { error: "權限設定不正確" };
+  if (password.length < 8) return { error: "密碼至少要 8 個字元" };
 
   try {
-    const { rowCount } = await sql`SELECT 1 FROM users WHERE email = ${email}`;
+    const { rowCount } = await sql`SELECT 1 FROM users WHERE LOWER(email) = ${email}`;
     if (rowCount !== null && rowCount > 0) {
       return { error: "此信箱已經被註冊過囉！" };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     await sql`
       INSERT INTO users (email, password, role)
       VALUES (${email}, ${hashedPassword}, ${role})
@@ -218,11 +237,9 @@ export async function createUserAction(formData: FormData) {
 
 export async function deleteUserAction(id: number) {
   const session = await requireAdmin();
-  if (session.user?.email) {
-    const { rows } = await sql`SELECT email FROM users WHERE id = ${id}`;
-    if (rows[0]?.email === session.user.email) {
-      throw new Error("不能刪除自己的帳號");
-    }
+  const { rows } = await sql`SELECT email FROM users WHERE id = ${id}`;
+  if (rows[0]?.email && rows[0].email === session.user?.email) {
+    throw new Error("不能刪除自己的帳號");
   }
 
   await sql`DELETE FROM users WHERE id = ${id}`;
@@ -237,7 +254,7 @@ export async function changePasswordAction(formData: FormData) {
   const currentPassword = String(formData.get("currentPassword") || "");
   const newPassword = String(formData.get("newPassword") || "");
   if (!currentPassword || !newPassword) return { error: "請填寫完整" };
-  if (newPassword.length < 6) return { error: "新密碼至少要 6 個字元" };
+  if (newPassword.length < 8) return { error: "新密碼至少要 8 個字元" };
 
   const { rows } = await sql`SELECT * FROM users WHERE email = ${session.user.email}`;
   const user = rows[0];
@@ -246,7 +263,6 @@ export async function changePasswordAction(formData: FormData) {
   const stored = String(user.password || "");
   const isHashed = stored.startsWith("$2a$") || stored.startsWith("$2b$");
   const matches = isHashed ? await bcrypt.compare(currentPassword, stored) : currentPassword === stored;
-
   if (!matches) return { error: "目前密碼不正確" };
 
   const newHashed = await bcrypt.hash(newPassword, 10);
@@ -256,29 +272,38 @@ export async function changePasswordAction(formData: FormData) {
 }
 
 export async function updateUserRoleAction(id: number, role: string) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any)?.role !== "admin") {
-    throw new Error("權限不足，僅限總管理員操作");
+  const session = await requireAdmin();
+  if (!VALID_ROLES.has(role)) throw new Error("權限設定不正確");
+
+  const { rows } = await sql`SELECT email FROM users WHERE id = ${id}`;
+  if (rows[0]?.email && rows[0].email === session.user?.email) {
+    throw new Error("不能修改自己的權限");
   }
+
   await sql`UPDATE users SET role = ${role} WHERE id = ${id}`;
   revalidatePath("/admin/users");
 }
 
 export async function toggleUserNotificationAction(id: number, currentStatus: boolean) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any)?.role !== "admin") {
-    throw new Error("權限不足，僅限總管理員操作");
-  }
-  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
+  await requireAdmin();
+  await ensureSchema();
   await sql`UPDATE users SET receive_notifications = ${!currentStatus} WHERE id = ${id}`;
   revalidatePath("/admin/users");
 }
 
 // ===== 學生投稿功能 =====
 
-export async function submitStudentWorkAction(formData: FormData) {
+type SubmitResult = { success: true } | { error: string };
+
+// 回傳 { error } 而不是丟出例外：正式上線後，Next.js 會把例外訊息藏起來，
+// 學生只會看到「發生錯誤」，用回傳值才能把真正原因（例如投稿太頻繁）顯示出來。
+export async function submitStudentWorkAction(formData: FormData): Promise<SubmitResult> {
   const honeypot = String(formData.get("website_hp") || "");
-  if (honeypot) return;
+  if (honeypot) return { success: true }; // 機器人：假裝成功
+
+  if (!(await getSubmissionStatus())) {
+    return { error: "目前暫不開放投稿" };
+  }
 
   const studentClass = String(formData.get("class") || "").trim();
   const rawSeat = formData.get("seatNumber") || formData.get("seat_number");
@@ -289,42 +314,37 @@ export async function submitStudentWorkAction(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const category = String(formData.get("category") || "散文");
   const title = String(formData.get("title") || "").trim();
-  const content = String(formData.get("content") || "").trim();
+  const content = sanitizeHtml(String(formData.get("content") || "").trim());
   const isAnonymous = formData.get("isAnonymous") === "on" || formData.get("is_anonymous") === "on";
-  const imageFile = formData.get("image") as File | null;
 
   if (!studentClass || !authorName || !email || !title || !content) {
-    throw new Error("請填寫所有必要的欄位");
+    return { error: "請填寫所有必要的欄位" };
+  }
+  if (!STUDENT_EMAIL_RE.test(email)) {
+    return { error: "必須使用學校核發的 @stu.tshs.tp.edu.tw 信箱" };
   }
 
-  if (!email.toLowerCase().endsWith("@stu.tshs.tp.edu.tw")) {
-    throw new Error("必須使用學校核發的 @stu.tshs.tp.edu.tw 信箱");
-  }
-
-  // 💡 替代 Redis：直接由 Postgres 檢查該 Email 於 10 分鐘內的投稿次數
+  // 頻率限制：同一信箱 10 分鐘 3 篇；全站 10 分鐘 30 篇
   try {
-    const { rows: recentCheck } = await sql`
-      SELECT COUNT(*) as count FROM submissions 
-      WHERE email = ${email} 
-      AND created_at > NOW() - INTERVAL '10 minutes'
+    const { rows } = await sql`
+      SELECT
+        COUNT(*) FILTER (WHERE email = ${email}) AS mine,
+        COUNT(*) AS total
+      FROM submissions
+      WHERE created_at > NOW() - INTERVAL '10 minutes'
     `;
-    
-    if (Number(recentCheck[0]?.count || 0) >= 3) {
-      throw new Error("投稿頻率過高，請 10 分鐘後再試！");
+    if (Number(rows[0]?.mine || 0) >= 3 || Number(rows[0]?.total || 0) >= 30) {
+      return { error: "投稿頻率過高，請 10 分鐘後再試！" };
     }
-  } catch (error: any) {
-    if (error.message?.includes("投稿頻率過高")) throw error;
-    console.error("Postgres 限流檢查異常:", error);
+  } catch (error) {
+    console.error("投稿頻率檢查異常:", error);
   }
 
   let imageUrl = "";
-  if (imageFile && imageFile.size > 0) {
-    const uniqueFilename = `submissions/${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const blob = await put(uniqueFilename, imageFile, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    imageUrl = blob.url;
+  try {
+    imageUrl = await resolveImage(formData, "submissions");
+  } catch (error: any) {
+    return { error: error?.message || "圖片上傳失敗" };
   }
 
   await sql`
@@ -332,85 +352,85 @@ export async function submitStudentWorkAction(formData: FormData) {
     VALUES (${studentClass}, ${seatNumber}, ${authorName}, ${email}, ${category}, ${title}, ${content}, ${imageUrl}, 'pending', ${isAnonymous})
   `;
 
+  await notifyEditors({ studentClass, seatNumber, authorName, email, category, title, isAnonymous });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/submissions");
+  return { success: true };
+}
+
+async function notifyEditors(info: {
+  studentClass: string;
+  seatNumber: number;
+  authorName: string;
+  email: string;
+  category: string;
+  title: string;
+  isAnonymous: boolean;
+}) {
+  if (!process.env.RESEND_API_KEY) return;
+
   try {
-    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS receive_notifications BOOLEAN DEFAULT false;`;
-    
-    const { rows: notifyUsers } = await sql`SELECT email FROM users WHERE receive_notifications = true`;
-    const adminEmailsArray = notifyUsers.map(u => u.email).filter(e => e.length > 0);
-    
+    await ensureSchema();
+    const { rows } = await sql`SELECT email FROM users WHERE receive_notifications = true`;
+    const recipients = rows.map((u) => String(u.email || "")).filter(Boolean);
+    if (recipients.length === 0) return;
+
     const siteUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-    if (adminEmailsArray.length > 0 && process.env.RESEND_API_KEY) {
-      await resend.emails.send({
-        from: "onboarding@resend.dev",
-        to: adminEmailsArray,
-        subject: `【新投稿通知】${studentClass} ${authorName} - 《${title}》`,
-        html: `
-          <div style="font-family: sans-serif; padding: 24px; color: #333; background-color: #f9f9f9; border-radius: 8px;">
-            <h2 style="color: #8c4033; margin-top: 0;">📩 收到新的學生作品投稿！</h2>
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;" />
-            <p><strong>文章標題：</strong> ${title}</p>
-            <p><strong>文章分類：</strong> ${category}</p>
-            <p><strong>投稿學生：</strong> ${studentClass} ${seatNumber}號 - ${authorName}</p>
-            <p><strong>聯絡信箱：</strong> ${email}</p>
-            <p><strong>發表方式：</strong> ${isAnonymous ? "🕵️ 要求匿名發表" : "👤 具名發表"}</p>
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
-            <a href="${siteUrl}/admin/submissions" 
-               style="display: inline-block; background-color: #8c4033; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
-              🚀 前往後台審核稿件
-            </a>
-          </div>
-        `,
-      });
-    }
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: recipients,
+      subject: `【新投稿通知】${info.studentClass} ${info.authorName} - 《${info.title}》`,
+      html: `
+        <div style="font-family: sans-serif; padding: 24px; color: #333; background-color: #f9f9f9; border-radius: 8px;">
+          <h2 style="color: #8c4033; margin-top: 0;">📩 收到新的學生作品投稿！</h2>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;" />
+          <p><strong>文章標題：</strong> ${escapeHtml(info.title)}</p>
+          <p><strong>文章分類：</strong> ${escapeHtml(info.category)}</p>
+          <p><strong>投稿學生：</strong> ${escapeHtml(info.studentClass)} ${info.seatNumber}號 - ${escapeHtml(info.authorName)}</p>
+          <p><strong>聯絡信箱：</strong> ${escapeHtml(info.email)}</p>
+          <p><strong>發表方式：</strong> ${info.isAnonymous ? "🕵️ 要求匿名發表" : "👤 具名發表"}</p>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
+          <a href="${escapeHtml(siteUrl)}/admin/submissions"
+             style="display: inline-block; background-color: #8c4033; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
+            🚀 前往後台審核稿件
+          </a>
+        </div>
+      `,
+    });
   } catch (error) {
     console.error("Email 通知發送失敗：", error);
   }
-
-  revalidatePath("/admin/submissions");
 }
 
 export async function publishSubmissionAction(submissionId: string, formData: FormData) {
   await requireSession();
-  await ensureColumnsExist();
+  await ensureSchema();
 
-  const title = String(formData.get("title") || "").trim();
-  const author = String(formData.get("author") || "").trim() || "匿名";
-  const category = String(formData.get("category") || "散文");
-  const sourceType = String(formData.get("sourceType") || "學生投稿").trim();
-  
-  const issue = sourceType === "學生投稿" ? "" : String(formData.get("issue") || "").trim();
-  const content = String(formData.get("content") || "").trim();
-  
-  const existingImageUrl = String(formData.get("existingImage") || "");
-  const imageFile = formData.get("image") as File | null;
-  let imageUrl = existingImageUrl;
-  
-  if (imageFile && imageFile.size > 0) {
-    const uniqueFilename = `${Date.now()}-${imageFile.name}`;
-    const blob = await put(`works/${uniqueFilename}`, imageFile, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    imageUrl = blob.url;
-  }
+  const work = readWorkForm(formData, "學生投稿");
+  if (!work.title || !work.content) return;
 
-  const { rows } = await sql`SELECT MIN(sort_order) as min_order FROM works`;
-  const minOrder = (rows[0]?.min_order ?? 1) - 1;
-
+  const imageUrl = await resolveImage(formData, "works", work.existingImage);
+  const workId = await insertWork(work, imageUrl);
   await sql`
-    INSERT INTO works (title, author, category, issue, source_type, content, image_url, sort_order)
-    VALUES (${title}, ${author}, ${category}, ${issue}, ${sourceType}, ${content}, ${imageUrl}, ${minOrder})
+    UPDATE submissions
+    SET status = 'published', work_id = ${workId}, reviewed_at = NOW()
+    WHERE id = ${submissionId}
   `;
 
-  await sql`UPDATE submissions SET status = 'published' WHERE id = ${submissionId}`;
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/works");
-  revalidatePath("/admin/submissions");
-  revalidatePath("/works");
-  revalidatePath("/");
+  revalidateWorks(["/admin/submissions"]);
   redirect("/admin/submissions");
+}
+
+// 本期未收錄：從待審清單移除，但保留稿件紀錄（後台統計用）
+export async function rejectSubmissionAction(id: number) {
+  await requireSession();
+  await ensureSchema();
+  await sql`UPDATE submissions SET status = 'rejected', reviewed_at = NOW() WHERE id = ${id}`;
+  revalidatePath("/admin");
+  revalidatePath("/admin/submissions");
+  return { success: true };
 }
 
 export async function deleteSubmissionAction(id: number) {
@@ -418,7 +438,6 @@ export async function deleteSubmissionAction(id: number) {
 
   try {
     await sql`DELETE FROM submissions WHERE id = ${id}`;
-
     revalidatePath("/admin");
     revalidatePath("/admin/submissions");
     return { success: true };
@@ -430,83 +449,91 @@ export async function deleteSubmissionAction(id: number) {
 
 // ===== 首頁外觀與網站設定 =====
 
-export async function getSiteSettings() {
-  try {
-    const { rows } = await sql`SELECT * FROM site_settings WHERE id = 1`;
-    return rows[0] || null;
-  } catch (error) {
-    console.error("無法取得網站設定:", error);
-    return null;
-  }
-}
-
 export async function updateSiteSettingsAction(formData: FormData) {
-  const session = await getServerSession(authOptions);
-  if (!session) throw new Error("未登入");
+  await requireSession();
+  await ensureSchema();
 
   const issueInfo = String(formData.get("issueInfo") || "").trim();
   const issueYear = String(formData.get("issueYear") || "").trim();
   const heroTitle = String(formData.get("heroTitle") || "").trim();
   const heroSubtitle = String(formData.get("heroSubtitle") || "").trim();
   const coverStoryTitle = String(formData.get("coverStoryTitle") || "").trim();
-  
+  const rawDeadline = String(formData.get("submissionDeadline") || "").trim();
+  const submissionDeadline = /^\d{4}-\d{2}-\d{2}$/.test(rawDeadline) ? rawDeadline : "";
   const existingImageUrl = String(formData.get("existingImage") || "");
-  const imageFile = formData.get("image") as File | null;
-  
-  let imageUrl = existingImageUrl;
 
-  if (imageFile && imageFile.size > 0) {
-    const uniqueFilename = `settings/${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const blob = await put(uniqueFilename, imageFile, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    imageUrl = blob.url;
-  }
+  const imageUrl = await resolveImage(formData, "settings", existingImageUrl);
 
+  // 用 upsert：就算資料庫裡還沒有設定資料，也能正確存入
   await sql`
-    UPDATE site_settings
-    SET 
-      issue_info = ${issueInfo},
-      issue_year = ${issueYear},
-      hero_title = ${heroTitle},
-      hero_subtitle = ${heroSubtitle},
-      cover_story_title = ${coverStoryTitle},
-      hero_image_url = ${imageUrl}
-    WHERE id = 1
+    INSERT INTO site_settings (id, issue_info, issue_year, hero_title, hero_subtitle, cover_story_title, hero_image_url, submission_deadline)
+    VALUES (1, ${issueInfo}, ${issueYear}, ${heroTitle}, ${heroSubtitle}, ${coverStoryTitle}, ${imageUrl}, ${submissionDeadline})
+    ON CONFLICT (id) DO UPDATE SET
+      issue_info = EXCLUDED.issue_info,
+      issue_year = EXCLUDED.issue_year,
+      hero_title = EXCLUDED.hero_title,
+      hero_subtitle = EXCLUDED.hero_subtitle,
+      cover_story_title = EXCLUDED.cover_story_title,
+      hero_image_url = EXCLUDED.hero_image_url,
+      submission_deadline = EXCLUDED.submission_deadline
   `;
 
   revalidatePath("/");
+  revalidatePath("/submit");
   revalidatePath("/admin/homepage");
 }
 
-export async function getSubmissionStatus() {
-  try {
-    await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS is_submission_open BOOLEAN DEFAULT true;`;
-    const { rows } = await sql`SELECT is_submission_open FROM site_settings WHERE id = 1`;
-    return rows[0]?.is_submission_open ?? true;
-  } catch (error) {
-    console.error("讀取投稿狀態失敗:", error);
-    return true; 
-  }
-}
+// 切換是否開放投稿：直接以資料庫目前的狀態為準，避免畫面資料過期造成切錯
+export async function toggleSubmissionStatusAction() {
+  await requireAdmin();
+  await ensureSchema();
 
-export async function toggleSubmissionStatusAction(currentStatus: boolean) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any)?.role !== "admin") {
-    throw new Error("權限不足，僅限總管理員操作");
-  }
-
-  await sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS is_submission_open BOOLEAN DEFAULT true;`;
-  
-  const nextStatus = !currentStatus;
-  
   await sql`
     INSERT INTO site_settings (id, is_submission_open)
-    VALUES (1, ${nextStatus})
-    ON CONFLICT (id) DO UPDATE SET is_submission_open = EXCLUDED.is_submission_open;
+    VALUES (1, false)
+    ON CONFLICT (id) DO UPDATE
+      SET is_submission_open = NOT COALESCE(site_settings.is_submission_open, true)
   `;
 
   revalidatePath("/admin");
-  revalidatePath("/submit"); 
+  revalidatePath("/submit");
+}
+
+// ===== 期刊資訊 =====
+
+export async function saveIssueAction(formData: FormData): Promise<{ success: true } | { error: string }> {
+  await requireSession();
+  await ensureSchema();
+
+  const name = String(formData.get("name") || "").trim();
+  if (!name) return { error: "缺少期數名稱" };
+
+  const theme = String(formData.get("theme") || "").trim().slice(0, 100);
+  const editorNote = String(formData.get("editorNote") || "").trim().slice(0, 3000);
+  const editors = String(formData.get("editors") || "").trim().slice(0, 200);
+  const existingImage = String(formData.get("existingImage") || "");
+
+  let coverUrl = existingImage;
+  try {
+    coverUrl = await resolveImage(formData, "issues", existingImage);
+  } catch (error: any) {
+    return { error: error?.message || "封面上傳失敗" };
+  }
+
+  await sql`
+    INSERT INTO issues (name, theme, editor_note, editors, cover_image_url, updated_at)
+    VALUES (${name}, ${theme}, ${editorNote}, ${editors}, ${coverUrl}, NOW())
+    ON CONFLICT (name) DO UPDATE SET
+      theme = EXCLUDED.theme,
+      editor_note = EXCLUDED.editor_note,
+      editors = EXCLUDED.editors,
+      cover_image_url = EXCLUDED.cover_image_url,
+      updated_at = NOW()
+  `;
+
+  revalidatePath("/");
+  revalidatePath("/issues");
+  revalidatePath(`/issues/${encodeURIComponent(name)}`);
+  revalidatePath("/admin/issues");
+  return { success: true };
 }

@@ -6,6 +6,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { uploadEditorImageAction } from '@/lib/actions';
+import { useTheme } from 'next-themes';
 
 export default function BlockNoteEditor({
   initialContent,
@@ -14,12 +15,16 @@ export default function BlockNoteEditor({
   initialContent: string;
   onChange: (html: string) => void;
 }) {
+  const { resolvedTheme } = useTheme();
   const editor = useCreateBlockNote({
     uploadFile: async (file) => {
       const formData = new FormData();
       formData.append('file', file);
       const res = await uploadEditorImageAction(formData);
-      return res.url || "";
+      if ("url" in res && res.url) return res.url;
+      const message = "error" in res ? res.error : "圖片上傳失敗";
+      alert(message);
+      throw new Error(message);
     }
   });
 
@@ -48,7 +53,7 @@ export default function BlockNoteEditor({
   return (
     <BlockNoteView 
       editor={editor} 
-      theme="dark" 
+      theme={resolvedTheme === "dark" ? "dark" : "light"} 
       onChange={handleEditorChange}
     />
   );
