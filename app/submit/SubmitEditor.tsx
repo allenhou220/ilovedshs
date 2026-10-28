@@ -9,6 +9,7 @@ import {
   BasicTextStyleButton,
   blockTypeSelectItems
 } from "@blocknote/react";
+import * as locales from "@blocknote/core/locales";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useTheme } from "next-themes";
@@ -32,13 +33,17 @@ function CustomBlockTypeSelect() {
 
 export default function SubmitEditor({ onChange }: { onChange: (html: string) => void }) {
   const { resolvedTheme } = useTheme();
-  // 💡 不需引用 locales，直接覆蓋預設 Placeholder 內容
+  // 使用完整的繁體中文字典，只覆蓋輸入框提示文字
+  // （若只給 placeholders，格式列會讀不到其他文字而當掉）
   const editor = useCreateBlockNote({
     dictionary: {
+      ...locales.zhTW,
       placeholders: {
+        ...locales.zhTW.placeholders,
         default: "請在此輸入作品內容...",
+        emptyDocument: "請在此輸入作品內容...",
       },
-    } as any,
+    },
   });
 
   return (

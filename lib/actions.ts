@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { Resend } from "resend";
 import { sanitizeHtml, escapeHtml } from "./sanitize-html";
 import { ensureSchema } from "./db";
+import { normalizeHeroTitle } from "./text";
 import { getSubmissionStatus } from "./queries";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_to_pass_build");
@@ -449,31 +450,36 @@ export async function deleteSubmissionAction(id: number) {
 
 // ===== 首頁外觀與網站設定 =====
 
-export async function updateSiteSettingsAction(formData: FormData) {
+export async function updateSiteSettingsAction(formData: FormData): Promise<{ success: true; imageUrl: string } | { error: string }> {
   await requireSession();
   await ensureSchema();
 
-  const issueInfo = String(formData.get("issueInfo") || "").trim();
-  const issueYear = String(formData.get("issueYear") || "").trim();
-  const heroTitle = String(formData.get("heroTitle") || "").trim();
-  const heroSubtitle = String(formData.get("heroSubtitle") || "").trim();
-  const coverStoryTitle = String(formData.get("coverStoryTitle") || "").trim();
+  const issueInfo = String(formData.get("issueInfo") || "").trim().slice(0, 40);
+  const issueYear = String(formData.get("issueYear") || "").trim().slice(0, 40);
+  const heroTitle = normalizeHeroTitle(String(formData.get("heroTitle") || ""));
+  const heroSubtitle = String(formData.get("heroSubtitle") || "").trim().slice(0, 200);
   const rawDeadline = String(formData.get("submissionDeadline") || "").trim();
   const submissionDeadline = /^\d{4}-\d{2}-\d{2}$/.test(rawDeadline) ? rawDeadline : "";
   const existingImageUrl = String(formData.get("existingImage") || "");
 
-  const imageUrl = await resolveImage(formData, "settings", existingImageUrl);
+  if (!heroTitle) return { error: "請輸入本期大標題。" };
+
+  let imageUrl = existingImageUrl;
+  try {
+    imageUrl = await resolveImage(formData, "settings", existingImageUrl);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "封面圖片上傳失敗，請再試一次。" };
+  }
 
   // 用 upsert：就算資料庫裡還沒有設定資料，也能正確存入
   await sql`
-    INSERT INTO site_settings (id, issue_info, issue_year, hero_title, hero_subtitle, cover_story_title, hero_image_url, submission_deadline)
-    VALUES (1, ${issueInfo}, ${issueYear}, ${heroTitle}, ${heroSubtitle}, ${coverStoryTitle}, ${imageUrl}, ${submissionDeadline})
+    INSERT INTO site_settings (id, issue_info, issue_year, hero_title, hero_subtitle, hero_image_url, submission_deadline)
+    VALUES (1, ${issueInfo}, ${issueYear}, ${heroTitle}, ${heroSubtitle}, ${imageUrl}, ${submissionDeadline})
     ON CONFLICT (id) DO UPDATE SET
       issue_info = EXCLUDED.issue_info,
       issue_year = EXCLUDED.issue_year,
       hero_title = EXCLUDED.hero_title,
       hero_subtitle = EXCLUDED.hero_subtitle,
-      cover_story_title = EXCLUDED.cover_story_title,
       hero_image_url = EXCLUDED.hero_image_url,
       submission_deadline = EXCLUDED.submission_deadline
   `;
@@ -481,6 +487,7 @@ export async function updateSiteSettingsAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/submit");
   revalidatePath("/admin/homepage");
+  return { success: true, imageUrl };
 }
 
 // 切換是否開放投稿：直接以資料庫目前的狀態為準，避免畫面資料過期造成切錯

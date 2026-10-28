@@ -80,3 +80,19 @@ export function categoryRank(cat?: string | null): number {
   const i = CATEGORY_ORDER.indexOf(String(cat || ""));
   return i === -1 ? CATEGORY_ORDER.length : i;
 }
+
+// ===== 首頁大標題 =====
+
+export const HERO_TITLE_MAX_LINES = 4
+export const HERO_TITLE_MAX_CHARS = 12
+
+/** 首頁大標題：去掉空行、最多 4 行、每行最多 12 字（後台預覽與儲存共用） */
+export function normalizeHeroTitle(value: string): string {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, HERO_TITLE_MAX_LINES)
+    .map((line) => Array.from(line).slice(0, HERO_TITLE_MAX_CHARS).join(''))
+    .join('\n')
+}

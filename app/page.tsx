@@ -112,14 +112,13 @@ export default async function Page() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={settings?.hero_image_url || "/images/hero-library.png"}
-                alt={settings?.cover_story_title || '本期封面'}
+                alt="本期封面"
                 className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
-            <figcaption className="flex items-baseline justify-between gap-4 font-serif text-sm tracking-[0.15em] text-muted-foreground">
-              <span>{settings?.cover_story_title || '本期封面'}</span>
-              {currentIssue && <span>收錄 {currentIssue.count} 篇作品</span>}
-            </figcaption>
+            {currentIssue && (
+              <figcaption className="text-right font-serif text-sm text-muted-foreground">本期收錄 {currentIssue.count} 篇作品</figcaption>
+            )}
           </figure>
         </div>
       </section>

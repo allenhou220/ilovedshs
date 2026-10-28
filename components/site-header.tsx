@@ -39,12 +39,15 @@ export function SiteHeader() {
       <div className="relative mx-auto flex h-[68px] max-w-7xl items-center justify-between gap-4 px-5 md:h-[76px] md:px-8">
         {/* 刊名 */}
         <Link href="/" className="group flex items-center gap-3" aria-label="東山文薈首頁">
-          <span
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dshslogo.jpg"
+            alt=""
             aria-hidden="true"
-            className="inline-flex size-10 items-center justify-center bg-primary font-serif text-xl font-bold text-primary-foreground transition-transform duration-500 group-hover:-rotate-6"
-          >
-            薈
-          </span>
+            width={48}
+            height={48}
+            className="size-11 object-contain mix-blend-multiply transition-transform duration-500 group-hover:-rotate-3 dark:invert dark:mix-blend-screen md:size-12"
+          />
           <span className="flex flex-col leading-none">
             <span className="font-serif text-[22px] font-black tracking-[0.28em] text-foreground">東山文薈</span>
             <span className="mt-1.5 hidden font-sans text-[10px] tracking-[0.32em] text-muted-foreground sm:block">東山高中・學生文學誌</span>
