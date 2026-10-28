@@ -43,6 +43,7 @@ const NAMED_ENTITIES: Record<string, string> = {
   colon: ":", tab: "\t", newline: "\n", sol: "/", lpar: "(", rpar: ")",
 };
 
+// 先把 &lt; &#x3C; 這類寫法還原成實際字元，再做判斷，避免有人用編碼躲過檢查
 function decodeEntities(s: string): string {
   return s.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);?/gi, (m, code: string) => {
     if (code[0] === "#") {
@@ -73,6 +74,7 @@ function escapeText(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// 網址檢查：只放行 http／https（連結可加 mailto、圖片可加內嵌的圖片資料），javascript: 之類一律拒絕
 function safeUrl(raw: string, tag: string): string | null {
   const decoded = decodeEntities(raw).trim();
   const compact = decoded.replace(/[\u0000- \u007f-\u009f]/g, "").toLowerCase();
@@ -85,6 +87,7 @@ function safeUrl(raw: string, tag: string): string | null {
   return null;
 }
 
+// style 檢查：含 url()、expression、@import 等可能載入外部內容或執行程式的寫法就整段丟掉
 function safeStyle(raw: string): string | null {
   const decoded = decodeEntities(raw);
   const compact = decoded.replace(/[\s\u0000-\u001f]/g, "").toLowerCase();
@@ -92,6 +95,7 @@ function safeStyle(raw: string): string | null {
   return decoded;
 }
 
+// 重組單一標籤：只保留白名單屬性，去掉 on開頭的事件屬性；target="_blank" 會自動補上 rel 防止被開啟的網頁操控原頁面
 function buildTag(tag: string, attrs: string, selfClose: boolean): string {
   let out = "<" + tag;
   let hasTargetBlank = false;
@@ -132,6 +136,7 @@ export function sanitizeHtml(input: unknown): string {
   TAG_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
 
+  // 逐一處理每個標籤：標籤前的文字先轉義，再依標籤種類決定保留、丟棄，或連同內容一起刪掉
   while ((m = TAG_RE.exec(html)) !== null) {
     out += escapeText(html.slice(last, m.index));
     last = TAG_RE.lastIndex;

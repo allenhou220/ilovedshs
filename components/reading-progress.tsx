@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 export function ReadingProgress({ targetId }: { targetId: string }) {
   const [progress, setProgress] = useState(0)
 
+  // 監聽捲動，依文章區塊的位置計算閱讀進度
   useEffect(() => {
     let frame = 0
     const update = () => {

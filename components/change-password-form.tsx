@@ -7,6 +7,7 @@ export function ChangePasswordForm() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [pending, setPending] = useState(false)
 
+  // 送出修改密碼；成功後清空表單
   async function handleSubmit(formData: FormData) {
     setPending(true)
     setMessage(null)

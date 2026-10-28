@@ -17,6 +17,7 @@ export function ModeToggle() {
   const currentTheme = theme === 'system' ? systemTheme : theme
   const isDark = currentTheme === 'dark'
 
+  // 切換亮／暗模式
   const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
     const nextTheme = isDark ? 'light' : 'dark'
 

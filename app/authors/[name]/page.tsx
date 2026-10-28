@@ -7,6 +7,7 @@ import { issueHref } from '@/lib/text'
 
 export const dynamic = 'force-dynamic'
 
+// 網址參數解碼；格式錯誤時不要丟出例外，直接用原字串
 function safeDecode(value: string) {
   try {
     return decodeURIComponent(value)
@@ -21,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ name: str
   return { title: author, description: `${author} 在東山文薈發表的作品` }
 }
 
+// 單一作者頁：列出該作者的所有作品
 export default async function AuthorPage({ params }: { params: Promise<{ name: string }> }) {
   const { name } = await params
   const author = await getAuthor(safeDecode(name))

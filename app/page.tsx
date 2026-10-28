@@ -8,6 +8,7 @@ import { issueHref, workHref } from "@/lib/text"
 
 export const dynamic = 'force-dynamic'
 
+// 截稿日期：格式正確且還沒過期才顯示，並轉成「11 月 30 日」；過期或沒設定就回傳 null（用台北時間判斷「今天」）
 function upcomingDeadline(value?: string | null) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' })
@@ -16,6 +17,7 @@ function upcomingDeadline(value?: string | null) {
   return `${m} 月 ${d} 日`
 }
 
+// 首頁：由伺服器一次查好所有資料再輸出，「force-dynamic」確保每次都是最新內容
 export default async function Page() {
   let works: any[] = []
   let settings: any = null
@@ -49,6 +51,7 @@ export default async function Page() {
     console.error("讀取資料庫失敗:", error)
   }
 
+  // 資料庫還沒有任何文章時，顯示提示與登入入口
   if (works.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-5 py-32 text-center">
@@ -60,6 +63,7 @@ export default async function Page() {
     )
   }
 
+  // 精選優先；沒有設定精選就用排序第一篇。最新作品取其餘文章的前 3 篇
   const rawFeatured = works.find((w) => w.featured) || works[0]
   const featuredWork = toSummary(rawFeatured, 260)
   const latestWorks = works.filter((w) => w.id !== rawFeatured.id).slice(0, 3).map((w) => toSummary(w, 110))
@@ -69,6 +73,7 @@ export default async function Page() {
   const currentIssueDetail = currentIssue ? await getIssue(currentIssue.name).catch(() => null) : null
   const toc = currentIssueDetail ? currentIssueDetail.grouped.flatMap((g) => g.items).slice(0, 10) : []
 
+  // 首頁大標題、期數與年份：後台有填就用後台的，沒填就用預設值
   const heroTitle: string = settings?.hero_title || '在鐘聲\n停下以前'
   const issueInfo: string = settings?.issue_info || currentIssue?.name || ''
   const issueYear: string = settings?.issue_year || ''

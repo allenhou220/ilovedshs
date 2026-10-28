@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description: '文薈學生文學誌徵稿類別、格式與投稿方式。' 
 }
 
+// 可投稿的文體說明
 const types = [
   { title: '散文', text: '記錄日常的細碎微光，在真誠的文字裡辨認生活真實的筆觸。' },
   { title: '新詩', text: '用最凝練的句式，捕捉瞬間的意象、隱喻與呼吸節奏。' },
@@ -17,6 +18,7 @@ const types = [
   { title: '漫畫', text: '以視覺與線條作為鏡頭，延伸圖文交織的流暢圖像敘述。' },
 ]
 
+// 投稿須知
 const RULES = [
   '作品須為本人原創，未曾公開發表或於其他刊物獲獎。',
   '來稿將由文薈編輯團隊進行審閱，作品刊登後會出現在「作品典藏」。',
@@ -24,12 +26,14 @@ const RULES = [
 ]
 
 // 以台灣時間判斷截稿日是否已過，過期就不顯示
+// 截稿日還沒過才顯示，過了就回傳 null
 function upcomingDeadline(value?: string | null) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) // YYYY-MM-DD
   return value >= today ? value.replace(/-/g, ' / ') : null
 }
 
+// 投稿頁：投稿關閉時顯示暫停說明，開放時顯示須知與投稿表單
 export default async function SubmitPage() {
   const [isOpen, settings] = await Promise.all([getSubmissionStatus(), getSiteSettings()]);
   const deadline = upcomingDeadline(settings?.submission_deadline);

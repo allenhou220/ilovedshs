@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import AdminForm from "../AdminForm";
 import { createWorkAction } from "@/lib/actions";
 
+// 新增文章頁：未登入者導回首頁
 export default async function NewWorkPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");

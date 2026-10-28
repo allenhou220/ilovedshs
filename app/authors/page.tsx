@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   description: '在東山文薈發表過作品的作者。',
 }
 
+// 作者列表頁（匿名作者不會出現）
 export default async function AuthorsPage() {
   const authors = await getAuthors()
 

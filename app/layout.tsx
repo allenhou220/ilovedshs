@@ -11,6 +11,7 @@ import './globals.css'
 
 const SITE_URL = 'https://ilovedshs.vercel.app'
 
+// 網站的 SEO 與分享預覽資訊（標題、說明、Open Graph）
 export const metadata: Metadata = {
   title: { 
     default: '東山文薈', 
@@ -41,6 +42,7 @@ export const viewport: Viewport = {
   // 不限制最大縮放：視力較弱的讀者需要能用手指放大文字
 }
 
+// 全站共用外框：主題（亮/暗）、頁首、頁尾與回到頂端按鈕
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html 

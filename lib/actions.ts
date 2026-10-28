@@ -12,6 +12,7 @@ import { ensureSchema } from "./db";
 import { normalizeHeroTitle } from "./text";
 import { getSubmissionStatus } from "./queries";
 
+// 寄信服務（Resend）。沒有設定金鑰時用假金鑰，只是為了讓 build 不會失敗；實際寄信前會先檢查金鑰是否存在
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_to_pass_build");
 
 // ===== 共用：權限檢查 =====
@@ -32,11 +33,13 @@ async function requireAdmin() {
   return session;
 }
 
+// 帳號權限只有兩種：admin（總管理員）、editor（編輯）；學生投稿只接受學校信箱
 const VALID_ROLES = new Set(["admin", "editor"]);
 const STUDENT_EMAIL_RE = /^[a-z0-9._-]+@stu\.tshs\.tp\.edu\.tw$/i;
 
 // ===== 共用：圖片上傳 =====
 
+// 允許上傳的圖片格式（對照副檔名）與大小上限
 const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -93,6 +96,7 @@ function readWorkForm(formData: FormData, defaultSource: string) {
   };
 }
 
+// 新增一篇作品並回傳它的 id；供「後台新增」與「投稿發布」共用
 async function insertWork(work: ReturnType<typeof readWorkForm>, imageUrl: string): Promise<number> {
   // 新文章排在最前面
   const { rows } = await sql`SELECT MIN(sort_order) AS min_order FROM works`;
@@ -149,6 +153,7 @@ export async function deleteWorkAction(id: number) {
   revalidateWorks();
 }
 
+// 切換精選：整個網站同一時間只會有一篇精選
 export async function toggleFeaturedAction(id: number, nextFeatured: boolean) {
   await requireSession();
   if (nextFeatured) {
@@ -160,6 +165,7 @@ export async function toggleFeaturedAction(id: number, nextFeatured: boolean) {
   revalidateWorks();
 }
 
+// 上移／下移：把整份排序讀出來、交換兩篇的位置，再一次寫回
 export async function moveWorkAction(id: number, direction: "up" | "down") {
   await requireSession();
 
@@ -188,6 +194,7 @@ export async function moveWorkAction(id: number, direction: "up" | "down") {
   revalidateWorks();
 }
 
+// 後台文字編輯器內插入圖片時呼叫；回傳 { url } 或 { error }，不丟例外
 export async function uploadEditorImageAction(formData: FormData) {
   await requireSession();
   const file = formData.get("file") as File | null;
@@ -205,6 +212,7 @@ export async function uploadEditorImageAction(formData: FormData) {
 
 // ===== 帳號管理功能 =====
 
+// 建立帳號：只有總管理員可以。密碼用 bcrypt 加密後才存入資料庫
 export async function createUserAction(formData: FormData) {
   await requireAdmin();
   const bcrypt = (await import("bcryptjs")).default;
@@ -236,6 +244,7 @@ export async function createUserAction(formData: FormData) {
   }
 }
 
+// 刪除帳號：不能刪除自己，避免把自己鎖在後台外面
 export async function deleteUserAction(id: number) {
   const session = await requireAdmin();
   const { rows } = await sql`SELECT email FROM users WHERE id = ${id}`;
@@ -247,6 +256,7 @@ export async function deleteUserAction(id: number) {
   revalidatePath("/admin/users");
 }
 
+// 修改自己的密碼：先驗證目前密碼（舊版明碼帳號也能驗證），通過後存成加密版本
 export async function changePasswordAction(formData: FormData) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) throw new Error("未登入");
@@ -272,6 +282,7 @@ export async function changePasswordAction(formData: FormData) {
   return { success: true };
 }
 
+// 調整他人的權限：不能改自己，避免最後一位總管理員把自己降級
 export async function updateUserRoleAction(id: number, role: string) {
   const session = await requireAdmin();
   if (!VALID_ROLES.has(role)) throw new Error("權限設定不正確");
@@ -285,6 +296,7 @@ export async function updateUserRoleAction(id: number, role: string) {
   revalidatePath("/admin/users");
 }
 
+// 開關某位成員是否收到「新投稿」通知信
 export async function toggleUserNotificationAction(id: number, currentStatus: boolean) {
   await requireAdmin();
   await ensureSchema();
@@ -299,6 +311,7 @@ type SubmitResult = { success: true } | { error: string };
 // 回傳 { error } 而不是丟出例外：正式上線後，Next.js 會把例外訊息藏起來，
 // 學生只會看到「發生錯誤」，用回傳值才能把真正原因（例如投稿太頻繁）顯示出來。
 export async function submitStudentWorkAction(formData: FormData): Promise<SubmitResult> {
+  // 第 1 關：隱藏欄位（蜜罐）。真人看不到也不會填，機器人填了就直接當作成功、不存資料
   const honeypot = String(formData.get("website_hp") || "");
   if (honeypot) return { success: true }; // 機器人：假裝成功
 
@@ -306,6 +319,7 @@ export async function submitStudentWorkAction(formData: FormData): Promise<Submi
     return { error: "目前暫不開放投稿" };
   }
 
+  // 第 2 關：讀取並整理表單欄位，座號轉成數字
   const studentClass = String(formData.get("class") || "").trim();
   const rawSeat = formData.get("seatNumber") || formData.get("seat_number");
   const parsedSeat = parseInt(String(rawSeat || "0"), 10);
@@ -318,6 +332,7 @@ export async function submitStudentWorkAction(formData: FormData): Promise<Submi
   const content = sanitizeHtml(String(formData.get("content") || "").trim());
   const isAnonymous = formData.get("isAnonymous") === "on" || formData.get("is_anonymous") === "on";
 
+  // 第 3 關：必填欄位與學校信箱格式檢查
   if (!studentClass || !authorName || !email || !title || !content) {
     return { error: "請填寫所有必要的欄位" };
   }
@@ -341,6 +356,7 @@ export async function submitStudentWorkAction(formData: FormData): Promise<Submi
     console.error("投稿頻率檢查異常:", error);
   }
 
+  // 有附圖才上傳；上傳失敗就把原因回給學生
   let imageUrl = "";
   try {
     imageUrl = await resolveImage(formData, "submissions");
@@ -353,6 +369,7 @@ export async function submitStudentWorkAction(formData: FormData): Promise<Submi
     VALUES (${studentClass}, ${seatNumber}, ${authorName}, ${email}, ${category}, ${title}, ${content}, ${imageUrl}, 'pending', ${isAnonymous})
   `;
 
+  // 存入後通知有開啟通知的編輯（寄信失敗不影響投稿結果）
   await notifyEditors({ studentClass, seatNumber, authorName, email, category, title, isAnonymous });
 
   revalidatePath("/admin");
@@ -360,6 +377,7 @@ export async function submitStudentWorkAction(formData: FormData): Promise<Submi
   return { success: true };
 }
 
+// 寄「新投稿」通知信給所有開啟通知的成員；所有學生輸入都先 escapeHtml 再放進信件，避免被塞入網頁語法
 async function notifyEditors(info: {
   studentClass: string;
   seatNumber: number;
@@ -405,6 +423,7 @@ async function notifyEditors(info: {
   }
 }
 
+// 發布投稿：建立正式作品、把這筆投稿標記為已發布並記下對應的作品 id
 export async function publishSubmissionAction(submissionId: string, formData: FormData) {
   await requireSession();
   await ensureSchema();

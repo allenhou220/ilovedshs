@@ -7,6 +7,7 @@ import { ChangePasswordForm } from "@/components/change-password-form";
 
 export const dynamic = "force-dynamic";
 
+// 帳號設定頁：登入者可在這裡查看自己的帳號資訊並修改密碼
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");

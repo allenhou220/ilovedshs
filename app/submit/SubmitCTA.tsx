@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ArrowUpRight, X } from "lucide-react";
 import SubmitForm from "./SubmitForm";
 
+// 投稿按鈕：點擊後展開投稿表單
 export default function SubmitCTA() {
   const [isOpen, setIsOpen] = useState(false);
 

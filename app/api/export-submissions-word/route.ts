@@ -8,6 +8,7 @@ import { sanitizeHtml, escapeHtml } from "@/lib/sanitize-html";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  // 匯出投稿資料為 Word：只有總管理員可以下載
   const session = await getServerSession(authOptions);
   
   if (!session) {

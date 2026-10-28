@@ -10,6 +10,7 @@ interface SubmissionsListProps {
   isAdmin?: boolean;
 }
 
+// 投稿列表：搜尋、標記「本期未收錄」、刪除；總管理員還能勾選多篇匯出成 Word
 export default function SubmissionsList({ 
   submissions, 
   isAdmin = false 
@@ -19,6 +20,7 @@ export default function SubmissionsList({
   const [searchTerm, setSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // 搜尋：比對標題、作者、信箱與班級
   const filteredSubmissions = submissions.filter((sub) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -29,6 +31,7 @@ export default function SubmissionsList({
     );
   });
 
+  // 匯出模式：先進入勾選狀態，選好文章後再一次下載
   const handleStartExportMode = () => {
     setIsExportMode(true);
     setSelectedIds([]);
@@ -53,6 +56,7 @@ export default function SubmissionsList({
     );
   };
 
+  // 徹底刪除：會先跳出確認視窗，刪除後同步取消勾選
   const handleDelete = (id: number) => {
     if (confirm("確定要徹底從資料庫刪除此稿件嗎？此動作無法復原！\n（若只是這期不收錄，建議改用「未收錄」，保留投稿紀錄）")) {
       startTransition(async () => {
@@ -79,6 +83,7 @@ export default function SubmissionsList({
     });
   };
 
+  // 匯出：把勾選的稿件 id 交給匯出 API，瀏覽器會直接下載壓縮檔
   const handleConfirmExport = () => {
     if (selectedIds.length === 0) {
       alert("請先勾選至少一篇要匯出的文章！");

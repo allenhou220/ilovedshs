@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   description: '東山文薈歷期刊物目錄。',
 }
 
+// 期刊總覽頁：列出所有期數與封面
 export default async function IssuesPage() {
   const issues = await getIssues()
 

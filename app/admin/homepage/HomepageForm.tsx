@@ -60,8 +60,10 @@ export default function HomepageForm({ initial }: { initial: Values }) {
   const longest = Math.max(3, ...previewLines.map((l) => Array.from(l).length));
   const previewSize = Math.max(20, Math.min(40, Math.floor(300 / longest)));
 
+  // 是否有未儲存的變更：換了圖片，或任何欄位與已儲存的值不同
   const dirty = newImage !== null || (Object.keys(values) as (keyof Values)[]).some((k) => values[k] !== saved[k]);
 
+  // 選擇圖片：先在前端檢查格式與大小，通過才顯示預覽
   function pickImage(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     setMessage(null);
@@ -84,6 +86,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
     setNewImage(null);
   }
 
+  // 送出：把欄位與圖片組成 FormData 交給伺服器動作，成功後更新「已儲存」狀態並重新整理頁面
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!previewTitle) {

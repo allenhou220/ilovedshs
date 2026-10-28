@@ -18,6 +18,7 @@ export default function UserRow({ user, isCurrentUser }: { user: any, isCurrentU
     });
   };
 
+  // 變更權限、開關通知、刪除帳號；實際的權限檢查都在伺服器端，前端按鈕只是介面
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const role = e.target.value;
     run(() => updateUserRoleAction(user.id, role), "修改權限失敗，請重新整理後再試");

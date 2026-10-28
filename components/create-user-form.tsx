@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { createUserAction } from '@/lib/actions'
 
+// 產生隨機密碼（用瀏覽器的安全亂數，並避開容易混淆的字元）
 function generateRandomPassword(length = 10) {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
   const values = new Uint32Array(length)

@@ -4,12 +4,14 @@ import { useState } from "react";
 import { submitStudentWorkAction } from "@/lib/actions";
 import dynamic from "next/dynamic";
 
+// 學校信箱格式（前端先檢查，伺服器端也會再檢查一次，不能只靠前端）
 const STUDENT_EMAIL_RE = /^[a-z0-9._-]+@stu\.tshs\.tp\.edu\.tw$/i;
 
 interface SubmitEditorProps {
   onChange: (html: string) => void;
 }
 
+// 文字編輯器只在瀏覽器端載入（ssr: false），因為它需要用到瀏覽器才有的功能
 const SubmitEditor = dynamic<SubmitEditorProps>(
   () => import("./SubmitEditor"),
   { ssr: false }
@@ -24,6 +26,7 @@ export default function SubmitForm() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // 信箱欄位：邊輸入邊檢查格式，不符就即時顯示提醒
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setEmail(value);
@@ -35,6 +38,7 @@ export default function SubmitForm() {
     }
   };
 
+  // 送出投稿：先檢查信箱，再呼叫伺服器；伺服器回傳的錯誤原因直接顯示給學生看
   async function handleSubmit(formData: FormData) {
     if (!STUDENT_EMAIL_RE.test(email.trim())) {
       setEmailError("請填寫正確的學校信箱");
@@ -57,6 +61,7 @@ export default function SubmitForm() {
     }
   }
 
+  // 投稿成功後改顯示成功畫面，不再顯示表單
   if (submitted) {
     return (
       <div className="flex flex-col items-center gap-5 py-8 text-center" role="status">
@@ -190,6 +195,7 @@ export default function SubmitForm() {
       </div>
 
       {/* 3. 內文編輯器 */}
+      {/* 編輯器的內容（HTML）放在隱藏欄位，表單送出時一起帶給伺服器 */}
       <input type="hidden" name="content" value={editorContent} />
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">作品內文</label>

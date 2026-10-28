@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Link2, Check, Share2 } from 'lucide-react'
 
+// 字級選項
 const SIZES = [
   { id: 's', label: '小字', px: 16, glyph: 'text-[13px]' },
   { id: 'm', label: '標準字級', px: 18, glyph: 'text-[16px]' },
@@ -11,10 +12,12 @@ const SIZES = [
 
 type SizeId = (typeof SIZES)[number]['id']
 type Layout = 'h' | 'v'
+// 把讀者選的字級與排版記在瀏覽器，下次閱讀沿用
 const STORAGE_KEY = 'wenhui-article-size'
 const LAYOUT_KEY = 'wenhui-article-layout'
 
 // 直排／橫排：切換內文容器的排版方式（直排時由右往左捲動）
+// 切換橫排／直排：直接改文章容器的樣式
 function applyLayout(layout: Layout, targetId: string) {
   const el = document.getElementById(targetId)
   if (!el) return
@@ -22,6 +25,7 @@ function applyLayout(layout: Layout, targetId: string) {
   if (layout === 'v') el.scrollLeft = el.scrollWidth // 從最右邊（開頭）開始讀
 }
 
+// 套用字級到文章容器
 function applySize(id: SizeId) {
   const size = SIZES.find((s) => s.id === id) || SIZES[1]
   document.documentElement.style.setProperty('--article-size', `${size.px}px`)
@@ -72,6 +76,7 @@ export function ReadingTools({ title, targetId = 'article-text', allowVertical =
 
   const pageUrl = () => window.location.href
 
+  // 複製文章連結；不支援剪貼簿時退而使用舊方式
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(pageUrl())

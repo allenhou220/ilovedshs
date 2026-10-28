@@ -6,6 +6,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://ilovedshs.vercel.app' // 你的正式網址
 
   // 1. 寫死的基本靜態頁面
+  // 固定頁面；後面再加上資料庫裡的文章、期刊與作者頁
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: baseUrl,

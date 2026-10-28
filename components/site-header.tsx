@@ -13,6 +13,7 @@ const links = [
   { href: '/about', label: '關於' },
 ]
 
+// 判斷目前頁面屬於哪個選單項目（用來標示當前頁）
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + '/')
 }

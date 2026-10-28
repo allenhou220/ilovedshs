@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 export const dynamic = "force-dynamic";
 
+// 數據卡片：有 href 時整張卡片可以點進去
 function StatCard({ label, value, hint, href }: { label: string; value: number | string; hint?: string; href?: string }) {
   const body = (
     <>
@@ -25,6 +26,7 @@ function StatCard({ label, value, hint, href }: { label: string; value: number |
   );
 }
 
+// 後台功能選單的項目（名稱、說明與連結）
 const MENU = [
   { href: "/admin/works", icon: FileText, title: "文章上架管理", desc: "新增、編輯、刪除文章，設定排序與首頁精選。" },
   { href: "/admin/submissions", icon: Inbox, title: "學生投稿審核", desc: "閱讀投稿、發布作品，或標記本期未收錄並留下回饋。" },
@@ -32,12 +34,14 @@ const MENU = [
   { href: "/admin/homepage", icon: LayoutTemplate, title: "首頁外觀設定", desc: "修改首頁大標題、引言文字與封面圖片。" },
 ];
 
+// 後台總覽：沒登入就導回首頁；「帳號管理」等僅限總管理員的項目只對 admin 顯示
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");
 
   const isAdmin = (session.user as any)?.role === "admin";
   const stats = await getDashboardStats();
+  // 各文體作品數的長條圖，以最多的那一項當作 100% 寬度
   const maxCat = Math.max(1, ...stats.categories.map((c) => c.count));
 
   return (

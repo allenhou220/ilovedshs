@@ -34,6 +34,7 @@ async function findWork(param: string) {
   return null;
 }
 
+// 分享用的頁面資訊：瀏覽器分頁標題、搜尋結果與社群分享時顯示的摘要和圖片
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
 
@@ -58,6 +59,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: '作品詳情｜東山文薈' };
 }
 
+// 文章頁：讀取文章、判斷文體（漫畫、新詩有各自的排版），再輸出標題區、內文、作者、上下篇與延伸閱讀
 export default async function WorkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -103,6 +105,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   const safeContent = sanitizeHtml(work.content || '');
   const stats = readingStats(safeContent, work.category);
 
+  // 漫畫：把內文裡的圖片網址一張張取出，逐頁顯示
   const comicImages: string[] = [];
   if (isComic && safeContent) {
     const imgRegex = /<img[^>]+src="([^"]+)"/g;
@@ -112,11 +115,13 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     }
   }
 
+  // 清掉編輯器產生的空白段落，避免內文出現多餘的空行
   const cleanContent = safeContent
     .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '')
     .replace(/<p>\s*&nbsp;\s*<\/p>/gi, '')
     .replace(/<p>\s*<\/p>/gi, '');
 
+  // 延伸閱讀，以及這位作者的作品總數（匿名不計算）
   const related = await getRelatedWorks({ id: work.id, author, category: work.category, issue: work.issue });
   const authorWorkCount = isPublicAuthor(author)
     ? Number((await sql`SELECT COUNT(*)::int AS n FROM works WHERE author = ${author}`).rows[0]?.n || 0)
@@ -180,6 +185,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           </div>
         </header>
 
+        {/* 文章主圖（漫畫的圖片就是內文，所以不重複顯示） */}
         {displayImage && !isComic && (
           <div className="mx-auto max-w-5xl px-5 pt-12 md:px-8 md:pt-16">
             <div className="relative aspect-video w-full overflow-hidden border border-foreground/15 bg-muted">
@@ -197,6 +203,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           )}
 
           {isComic ? (
+            // 漫畫：圖片由上而下排列；萬一抓不到圖片網址，就直接顯示原本的內文
             <section className="mx-auto max-w-3xl px-0 md:px-4">
               <div className="flex flex-col items-center overflow-hidden border-2 border-foreground bg-foreground">
                 {comicImages.length > 0 ? (
@@ -219,6 +226,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
               </div>
             </section>
           ) : (
+            // 小說、散文、新詩：新詩較窄且置中；內文的樣式用 [&_p] 這類寫法統一套用到編輯器產生的標籤上
             <div className={`mx-auto px-5 py-12 md:px-8 md:py-16 ${isPoetry ? 'max-w-2xl' : 'max-w-[42rem]'}`}>
               <div
                 id="article-text"

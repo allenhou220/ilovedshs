@@ -10,6 +10,7 @@ import { ArrowLeft, UserPlus, Users } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+// 帳號管理頁：僅限總管理員；其他人會被導回後台首頁（middleware 也有一層保護）
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
   if (!session || (session.user as any)?.role !== "admin") {

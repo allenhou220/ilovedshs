@@ -18,6 +18,7 @@ type AdminWork = {
   sort_order?: number
 }
 
+// 後台文章列表：多重篩選（期數、來源、文體、關鍵字）、設為精選、上下排序、刪除
 export function AdminList({ works }: { works: AdminWork[] }) {
   // 多重篩選條件狀態
   const [selectedIssue, setSelectedIssue] = useState('全部')
@@ -72,6 +73,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
   // 只有在未進行任何篩選時，才開放上下排序功能
   const canReorder = !isFiltered
 
+  // 刪除文章：先確認，再呼叫伺服器動作
   async function handleDelete(id: number, title: string) {
     if (!confirm(`確定要刪除「${title}」嗎？這個動作無法復原。`)) return
     setDeletingId(id)
@@ -84,6 +86,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
     }
   }
 
+  // 設為／取消精選
   function handleToggleFeatured(id: number, current: boolean) {
     startTransition(async () => {
       try {
@@ -94,6 +97,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
     })
   }
 
+  // 調整順序：交給伺服器處理，避免畫面上的順序與資料庫不一致
   function handleMove(id: number, direction: 'up' | 'down') {
     startTransition(async () => {
       try {

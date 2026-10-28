@@ -28,6 +28,7 @@ export default function BlockNoteEditor({
     }
   });
 
+  // 只在第一次載入時把既有 HTML 轉成編輯器內容，避免之後覆蓋使用者正在輸入的文字
   const initLoaded = useRef(false);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function BlockNoteEditor({
     loadInitialHTML();
   }, [editor, initialContent]);
 
+  // 內容變動時把編輯器內容轉成 HTML 回傳給外層表單
   const handleEditorChange = async () => {
     const html = await editor.blocksToHTMLLossy(editor.document);
     onChange(html);

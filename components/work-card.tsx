@@ -17,12 +17,14 @@ type CardWork = {
 }
 
 export function WorkCard({ work, featured = false }: { work: CardWork; featured?: boolean }) {
+  // 先整理好卡片需要的資料：連結、摘要、是否學生投稿、作者與文體
   const href = workHref(work)
   const excerpt = work.excerpt ?? work.content ?? ''
   const isStudent = (work.source_type || work.sourceType) === '學生投稿'
   const author = work.author || '匿名'
   const category = work.category || '散文'
 
+  // 三個區塊：圖片（沒有圖時用稿紙底）、文體與閱讀時間、作者署名
   const image = (
     <Link
       href={href}

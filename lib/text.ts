@@ -76,6 +76,7 @@ export const CATEGORY_EN: Record<string, string> = {
   漫畫: "COMIC",
 };
 
+// 取得文體的排序名次；不在清單內的文體排在最後
 export function categoryRank(cat?: string | null): number {
   const i = CATEGORY_ORDER.indexOf(String(cat || ""));
   return i === -1 ? CATEGORY_ORDER.length : i;

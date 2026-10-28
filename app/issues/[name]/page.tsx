@@ -7,6 +7,7 @@ import { IssueCover, cnNumeral } from '@/components/editorial'
 
 export const dynamic = 'force-dynamic'
 
+// 網址參數解碼；格式錯誤時不要丟出例外，直接用原字串
 function safeDecode(value: string) {
   try {
     return decodeURIComponent(value)
@@ -21,6 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ name: str
   return { title: issueName, description: `東山文薈 ${issueName} 目錄` }
 }
 
+// 單一期刊頁：依文體分組列出目錄，並提供前後期連結
 export default async function IssuePage({ params }: { params: Promise<{ name: string }> }) {
   const { name } = await params
   const issueName = safeDecode(name)

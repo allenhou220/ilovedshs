@@ -6,6 +6,7 @@ import { WorkCard } from '@/components/work-card'
 import { PageHeading } from '@/components/editorial'
 import { Search, X, RotateCcw } from 'lucide-react'
 
+// 每頁顯示 9 篇；篩選選項的預設值
 const PAGE_SIZE = 9
 const SOURCES = ['全部來源', '文薈成員創作', '學生投稿']
 const DEFAULT_CATEGORIES = ['散文', '新詩', '小說', '採訪', '漫畫']
@@ -20,6 +21,7 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
   // 伺服器端已經依照後台設定的順序排好，這裡不用再排序
   const sortedWorks = dbWorks
 
+  // 下拉選單的選項：由現有文章自動整理（期數、文體），文體另外保留預設五種
   const uniqueIssues = useMemo(
     () => ['全部期數', ...Array.from(new Set(sortedWorks.map(work => work.issue || '第 1 期')))],
     [sortedWorks]
@@ -30,6 +32,7 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
     [sortedWorks]
   )
 
+  // 目前的篩選條件與頁碼
   const [selectedIssue, setSelectedIssue] = useState('全部期數')
   const [selectedSource, setSelectedSource] = useState('全部來源')
   const [selectedCategory, setSelectedCategory] = useState('全部類別')
@@ -47,6 +50,7 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
     if (focusSearch) searchInputRef.current?.focus()
   }, [focusSearch])
 
+  // 依四個條件（期數、來源、文體、關鍵字）過濾；關鍵字會比對標題、作者與全文
   const filteredWorks = sortedWorks.filter((work) => {
     const workCategory = work.category || '散文'
     const workIssue = work.issue || '第 1 期'
@@ -80,6 +84,7 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
     setSearchQuery('')
   }
 
+  // 分頁：計算總頁數並切出目前這一頁的作品
   const totalPages = Math.max(1, Math.ceil(filteredWorks.length / PAGE_SIZE))
   const paginatedWorks = filteredWorks.slice(
     (currentPage - 1) * PAGE_SIZE,

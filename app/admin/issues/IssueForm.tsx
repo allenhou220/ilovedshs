@@ -21,6 +21,7 @@ export function IssueForm({ issue }: { issue: Issue }) {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [preview, setPreview] = useState(issue.cover_image_url)
 
+  // 送出表單：呼叫伺服器動作儲存，成功或失敗都顯示訊息
   async function handleSubmit(formData: FormData) {
     setPending(true)
     setMessage(null)

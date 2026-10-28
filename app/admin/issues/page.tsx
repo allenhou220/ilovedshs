@@ -9,6 +9,7 @@ import { IssueForm } from "./IssueForm";
 
 export const dynamic = "force-dynamic";
 
+// 期刊管理頁：列出各期並可編輯封面、主題與簡介
 export default async function AdminIssuesPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");

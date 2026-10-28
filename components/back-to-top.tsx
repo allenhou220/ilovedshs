@@ -32,6 +32,7 @@ export function BackToTop() {
   }, [])
 
   // 平滑滾動到頂部
+  // 平滑捲回頁面最上方
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,

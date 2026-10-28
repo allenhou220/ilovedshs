@@ -15,6 +15,7 @@ import "@blocknote/mantine/style.css";
 import { useTheme } from "next-themes";
 
 // 💡 自訂選單：只保留「內文」與「標題」，徹底排除所有 List 與 Quote
+// 精簡版的區塊類型選單，只保留投稿需要的段落與標題格式
 function CustomBlockTypeSelect() {
   const editor = useBlockNoteEditor();
   
@@ -31,6 +32,7 @@ function CustomBlockTypeSelect() {
   return <BlockTypeSelect items={filteredItems} />;
 }
 
+// 投稿用的文字編輯器（BlockNote，繁體中文介面），內容變動時以 HTML 回傳
 export default function SubmitEditor({ onChange }: { onChange: (html: string) => void }) {
   const { resolvedTheme } = useTheme();
   // 使用完整的繁體中文字典，只覆蓋輸入框提示文字

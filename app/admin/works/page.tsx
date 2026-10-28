@@ -8,6 +8,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+// 文章管理頁：列出所有文章，可新增、編輯、排序、設定精選與刪除
 export default async function AdminWorksPage() {
   const session = await getServerSession(authOptions);
   if (!session) {

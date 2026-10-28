@@ -91,6 +91,7 @@ export async function getIssues(): Promise<IssueInfo[]> {
       GROUP BY w.issue
     `;
     return rows
+      // 封面優先順序：後台上傳的封面 → 該期精選文章的圖 → 該期任一篇的圖
       .map((r: any) => ({
         name: r.name,
         count: r.count,
@@ -119,6 +120,7 @@ export async function getIssue(name: string) {
 
   const { rows: meta } = await sql`SELECT * FROM issues WHERE name = ${name}`;
   const works: WorkSummary[] = rows.map((r: any) => toSummary(r));
+  // 依文體分組，再照固定順序排列（散文、新詩、小說……）
   const groups = new Map<string, WorkSummary[]>();
   for (const w of works) {
     if (!groups.has(w.category)) groups.set(w.category, []);
@@ -128,6 +130,7 @@ export async function getIssue(name: string) {
     .sort((a, b) => categoryRank(a[0]) - categoryRank(b[0]))
     .map(([category, items]) => ({ category, items }));
 
+  // 計算作者人數時排除匿名作品
   const authors = new Set(works.map((w) => w.author).filter(isPublicAuthor));
   return {
     name,
@@ -171,6 +174,7 @@ export async function getAuthor(name: string) {
   `;
   if (rows.length === 0) return null;
   const works: WorkSummary[] = rows.map((r: any) => toSummary(r));
+  // 整理這位作者出現過的期數（由舊到新）與常寫的文體（篇數多的在前）
   const issues: string[] = Array.from(new Set<string>(works.map((w) => w.issue).filter(Boolean))).sort((a, b) => issueNumber(a) - issueNumber(b));
   const counts = new Map<string, number>();
   for (const w of works) counts.set(w.category, (counts.get(w.category) || 0) + 1);
@@ -189,6 +193,7 @@ export async function getRelatedWorks(work: { id: number; author?: string; categ
       ORDER BY sort_order ASC NULLS LAST, id DESC
     `;
     const picked: (WorkSummary & { reason: string })[] = [];
+    // 依序從符合條件的文章中挑，已挑過的不重複，挑滿 limit 篇就停止
     const take = (pred: (r: any) => boolean, reason: string) => {
       for (const r of rows) {
         if (picked.length >= limit) return;
@@ -199,6 +204,7 @@ export async function getRelatedWorks(work: { id: number; author?: string; categ
     if (isPublicAuthor(work.author)) take((r) => r.author === work.author, "同一位作者");
     if (work.category) take((r) => r.category === work.category, `同為${work.category}`);
     if (work.issue) take((r) => r.issue === work.issue, "同一期");
+    // 還不夠時，用最新作品補滿
     take(() => true, "最新作品");
     return picked;
   } catch (error) {
@@ -211,6 +217,7 @@ export async function getRelatedWorks(work: { id: number; author?: string; categ
 
 export async function getDashboardStats() {
   await ensureSchema();
+  // 五項統計同時查詢，後台總覽才不會等很久
   const [works, subs, cats, recent, open] = await Promise.all([
     sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE source_type = '學生投稿')::int AS student FROM works`,
     sql`

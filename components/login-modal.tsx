@@ -12,6 +12,7 @@ export default function LoginModal() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  // 登入：成功就重新整理頁面並進後台，失敗顯示錯誤訊息
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");

@@ -39,6 +39,7 @@ export default async function ReviewSubmissionPage({
     notFound();
   }
 
+  // 把投稿 id 先綁進發布動作，表單送出時就知道要發布哪一筆投稿
   const handlePublish = publishSubmissionAction.bind(null, id);
 
   return (

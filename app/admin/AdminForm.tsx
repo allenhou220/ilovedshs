@@ -8,6 +8,7 @@ import { sanitizeHtml } from '@/lib/sanitize-html';
 import { uploadEditorImageAction } from '@/lib/actions';
 import { ArrowLeft, Upload, Trash2, ArrowUp, ArrowDown, Plus, Image as ImageIcon, BookOpen } from 'lucide-react';
 
+// 文字編輯器只在瀏覽器端載入，載入前顯示提示文字
 const BlockNoteEditor = dynamic(() => import('@/components/blocknote-editor'), {
   ssr: false,
   loading: () => (
@@ -17,6 +18,7 @@ const BlockNoteEditor = dynamic(() => import('@/components/blocknote-editor'), {
   ),
 });
 
+// 送出按鈕：送出中、內容超過上限或圖片上傳中時停用，並顯示對應的文字
 function SubmitButton({ label, disabled, disabledLabel = "容量超過 10MB 無法發布" }: { label: string; disabled?: boolean; disabledLabel?: string }) {
   const { pending } = useFormStatus();
   const isBtnDisabled = pending || disabled;
@@ -43,6 +45,7 @@ function SubmitButton({ label, disabled, disabledLabel = "容量超過 10MB 無�
   );
 }
 
+// 編輯既有文章（或審核投稿）時帶入的預設值；新增文章時不會傳
 type DefaultValues = {
   title?: string;
   author?: string;
@@ -69,6 +72,7 @@ export default function AdminForm({
   const [author, setAuthor] = useState(defaultValues?.author || '');
   const [category, setCategory] = useState(defaultValues?.category || '散文');
   
+  // 文章來源決定要不填期數：學生投稿不需要期數
   const initialSource = isSubmission 
     ? '學生投稿' 
     : (defaultValues?.source_type || defaultValues?.sourceType || '文薈成員創作');
@@ -112,12 +116,14 @@ export default function AdminForm({
   }, [comicPages, category]);
 
   useEffect(() => {
+    // 投稿審核頁一律視為「學生投稿」，並清空期數
     if (isSubmission || defaultValues?.sourceType === '學生投稿' || defaultValues?.source_type === '學生投稿') {
       setSourceType('學生投稿');
       setIssue('');
     }
   }, [isSubmission, defaultValues]);
 
+  // 計算內文大小，超過 10MB 就不能送出
   const contentSizeBytes = typeof Blob !== 'undefined' ? new Blob([editorContent]).size : 0;
   const isOverLimit = contentSizeBytes > 10 * 1024 * 1024;
   const displaySize = contentSizeBytes < 1024 * 1024 
@@ -128,6 +134,7 @@ export default function AdminForm({
     setIsMounted(true);
   }, []);
 
+  // 選擇封面圖片後，先在瀏覽器裡產生預覽（這時還沒上傳）
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -238,6 +245,7 @@ export default function AdminForm({
         </Link>
       </div>
 
+      {/* 表單：標題、作者、文體、期數、來源、封面圖片、內文；送出時交給父層傳入的 handlePublish（新增、更新或發布投稿） */}
       <form action={handlePublish} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "hsl(var(--muted-foreground))" }}>文章標題</label>
@@ -383,8 +391,10 @@ export default function AdminForm({
             </span>
           </div>
           
+          {/* 內文放在隱藏欄位送出：一般文章來自編輯器，漫畫則由下方的頁面清單自動組成 */}
           <input type="hidden" name="content" value={editorContent} />
           
+          {/* 編輯區：切到預覽時只是隱藏、不卸載，所以編輯到一半的內容不會消失 */}
           <div style={{ display: activeTab === "edit" ? "block" : "none" }}>
             {category === '漫畫' ? (
               <div style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", padding: "20px" }}>
@@ -509,6 +519,7 @@ export default function AdminForm({
           </div>
         </div>
 
+        {/* 送出按鈕：內容超過 10MB 或漫畫圖片還在上傳時會停用 */}
         <SubmitButton
           label={submitLabel}
           disabled={isOverLimit || comicUploading > 0}

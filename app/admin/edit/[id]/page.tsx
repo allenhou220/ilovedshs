@@ -16,6 +16,7 @@ export default async function EditWorkPage({ params }: { params: Promise<{ id: s
   const work = rows[0];
   if (!work) notFound();
 
+  // 把文章 id 先綁進更新動作，表單送出時就知道要改哪一篇
   const boundAction = updateWorkAction.bind(null, work.id);
 
   return (

@@ -9,6 +9,7 @@ import SubmissionsList from "@/components/submissions-list";
 
 export const dynamic = "force-dynamic";
 
+// 投稿列表頁：只有登入的成員能進入；匯出功能只對總管理員開放
 export default async function SubmissionsPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");
