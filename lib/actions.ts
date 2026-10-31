@@ -393,7 +393,8 @@ async function notifyEditors(info: {
     const recipients = rows.map((u) => String(u.email || "")).filter(Boolean);
     if (recipients.length === 0) return;
 
-    const siteUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    // 信裡的連結一律指向正式網站（本機測試時也一樣），可用環境變數 SITE_URL 改成其他網址
+    const siteUrl = process.env.SITE_URL || "https://ilovedshs.vercel.app";
 
     await sendMail({
       to: recipients,
