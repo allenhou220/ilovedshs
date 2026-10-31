@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { submitStudentWorkAction } from "@/lib/actions";
+import { compressImageFile } from "@/lib/compress-image";
+import { clearDraft, loadDraft, saveDraft, type SubmitDraft } from "@/lib/submit-draft";
 import dynamic from "next/dynamic";
 
 // 學校信箱格式（前端先檢查，伺服器端也會再檢查一次，不能只靠前端）
 const STUDENT_EMAIL_RE = /^[a-z0-9._-]+@stu\.tshs\.tp\.edu\.tw$/i;
 
 interface SubmitEditorProps {
-  onChange: (html: string) => void;
+  onChange: (html: string, blocks: unknown[]) => void;
+  initialBlocks?: unknown[];
 }
+
+// 一般文字欄位（不含信箱、匿名勾選，那兩個由 React 狀態控制）
+const TEXT_FIELDS = ["class", "seatNumber", "authorName", "title", "category"] as const;
 
 // 文字編輯器只在瀏覽器端載入（ssr: false），因為它需要用到瀏覽器才有的功能
 const SubmitEditor = dynamic<SubmitEditorProps>(
@@ -25,6 +31,95 @@ export default function SubmitForm() {
   const [emailError, setEmailError] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // ----- 草稿自動保存 -----
+  const formRef = useRef<HTMLFormElement>(null);
+  const blocksRef = useRef<unknown[]>([]);
+  const htmlRef = useRef("");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [draftReady, setDraftReady] = useState(false); // 讀完草稿才載入編輯器，才能把內容還原進去
+  const [initialBlocks, setInitialBlocks] = useState<unknown[] | undefined>(undefined);
+  const [editorKey, setEditorKey] = useState(0);
+  const [restored, setRestored] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // 進入頁面時讀取草稿，把各欄位與內文還原
+  useEffect(() => {
+    const draft = loadDraft();
+    const form = formRef.current;
+    if (draft && form) {
+      for (const name of TEXT_FIELDS) {
+        const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+        if (el && draft.fields[name]) el.value = draft.fields[name];
+      }
+      setEmail(draft.fields.email);
+      if (draft.fields.email && !STUDENT_EMAIL_RE.test(draft.fields.email.trim())) {
+        setEmailError("僅限使用學校信箱 (@stu.tshs.tp.edu.tw)");
+      }
+      setIsAnonymous(draft.fields.isAnonymous);
+      setEditorContent(draft.html);
+      htmlRef.current = draft.html;
+      blocksRef.current = draft.blocks;
+      setInitialBlocks(draft.blocks);
+      setSavedAt(draft.savedAt);
+      setRestored(true);
+    }
+    setDraftReady(true);
+  }, []);
+
+  // 從表單目前的狀態組出草稿並存起來（輸入停下 0.8 秒後才存，避免每打一個字就寫一次）
+  const scheduleSave = useCallback(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const form = formRef.current;
+      if (!form) return;
+      const get = (name: string) => ((form.elements.namedItem(name) as HTMLInputElement | null)?.value || "");
+      const draft: SubmitDraft = {
+        fields: {
+          class: get("class"),
+          seatNumber: get("seatNumber"),
+          authorName: get("authorName"),
+          email: get("email"),
+          title: get("title"),
+          category: get("category"),
+          isAnonymous: !!(form.elements.namedItem("isAnonymous") as HTMLInputElement | null)?.checked,
+        },
+        html: htmlRef.current,
+        blocks: blocksRef.current,
+        savedAt: Date.now(),
+      };
+      setSavedAt(saveDraft(draft) ? draft.savedAt : null);
+    }, 800);
+  }, []);
+
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
+
+  const handleEditorChange = useCallback((html: string, blocks: unknown[]) => {
+    htmlRef.current = html;
+    blocksRef.current = blocks;
+    setEditorContent(html);
+    scheduleSave();
+  }, [scheduleSave]);
+
+  // 清除草稿：表單、編輯器全部清空（公用電腦用完記得按）
+  const handleClearDraft = () => {
+    if (!window.confirm("確定要清除草稿嗎？已輸入的內容會全部刪除。")) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    clearDraft();
+    formRef.current?.reset();
+    setEmail("");
+    setEmailError("");
+    setIsAnonymous(false);
+    setEditorContent("");
+    htmlRef.current = "";
+    blocksRef.current = [];
+    setInitialBlocks(undefined);
+    setEditorKey((k) => k + 1); // 重新建立一個空白的編輯器
+    setRestored(false);
+    setSavedAt(null);
+  };
 
   // 信箱欄位：邊輸入邊檢查格式，不符就即時顯示提醒
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,12 +142,20 @@ export default function SubmitForm() {
 
     setIsSubmitting(true);
     try {
+      // 封面圖片先在瀏覽器裡壓縮，上傳更快
+      const image = formData.get("image");
+      if (image && typeof image === "object" && image.size > 0) {
+        formData.set("image", await compressImageFile(image as File));
+      }
       const result = await submitStudentWorkAction(formData);
       if ("error" in result) {
         // 顯示伺服器回傳的真正原因（例如投稿太頻繁、圖片格式不對）
         alert(result.error);
         return;
       }
+      // 投稿成功：草稿就不需要了
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      clearDraft();
       setSubmitted(true);
     } catch (error) {
       alert("投稿發生錯誤，請稍後再試。");
@@ -82,7 +185,17 @@ export default function SubmitForm() {
   }
 
   return (
-    <form action={handleSubmit} className="flex flex-col gap-6 text-left w-full">
+    <form ref={formRef} action={handleSubmit} onChange={scheduleSave} className="flex flex-col gap-6 text-left w-full">
+      {/* 還原草稿的提示 */}
+      {restored && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-primary/40 bg-primary/5 px-4 py-3 font-serif text-sm" role="status">
+          <span>已還原你上次還沒送出的內容，可以接著寫。</span>
+          <button type="button" onClick={handleClearDraft} className="min-h-11 text-primary underline underline-offset-4">
+            清除草稿、重新開始
+          </button>
+        </div>
+      )}
+
       {/* 1. 學生基本資料 */}
       <div className="flex flex-col gap-4">
         <div className="flex gap-4">
@@ -199,9 +312,26 @@ export default function SubmitForm() {
       <input type="hidden" name="content" value={editorContent} />
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">作品內文</label>
-        <SubmitEditor onChange={setEditorContent} />
+        {draftReady ? (
+          <SubmitEditor key={editorKey} onChange={handleEditorChange} initialBlocks={initialBlocks} />
+        ) : (
+          <div className="min-h-[300px] rounded-md border border-border bg-background" />
+        )}
         <p className="text-xs text-muted-foreground mt-1">
           提示：圈選文字即可切換標題大小、套用粗體、斜體與底線。
+        </p>
+        {/* 草稿狀態：只存在這台裝置的瀏覽器 */}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-live="polite">
+          <span>
+            {savedAt
+              ? `已自動保存草稿（${new Date(savedAt).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}），只存在這台裝置。`
+              : "輸入的內容會自動保存在這台裝置，不小心關掉也不會不見。"}
+          </span>
+          {savedAt && !restored && (
+            <button type="button" onClick={handleClearDraft} className="min-h-8 underline underline-offset-4 hover:text-primary">
+              清除草稿
+            </button>
+          )}
         </p>
       </div>
 

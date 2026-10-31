@@ -2,6 +2,7 @@ import { sql } from "@vercel/postgres";
 import WorksClient from "./WorksClient";
 import { stripHtml } from "@/lib/text";
 import { toSummary } from "@/lib/queries";
+import { normalizeText } from "@/lib/search";
 
 // 確保每次重整都抓取最新文章，避免 Next.js 任何快取干擾
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ export default async function WorkPage() {
     // 瀏覽器只會收到「摘要」和「搜尋用文字」，不再收到整份 HTML（漫畫的圖片資料可能高達數 MB）
     works = rows.map((row) => ({
       ...toSummary(row, 200),
-      searchText: stripHtml(row.content || '').toLowerCase(),
+      searchText: normalizeText(stripHtml(row.content || '')),
     }));
   } catch (error) {
     console.error("讀取資料庫失敗:", error);

@@ -6,6 +6,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { uploadEditorImageAction } from '@/lib/actions';
+import { compressImageFile } from '@/lib/compress-image';
 import { useTheme } from 'next-themes';
 
 export default function BlockNoteEditor({
@@ -19,7 +20,7 @@ export default function BlockNoteEditor({
   const editor = useCreateBlockNote({
     uploadFile: async (file) => {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', await compressImageFile(file)); // 內文插圖先壓縮再上傳
       const res = await uploadEditorImageAction(formData);
       if ("url" in res && res.url) return res.url;
       const message = "error" in res ? res.error : "圖片上傳失敗";

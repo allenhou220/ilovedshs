@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { saveIssueAction } from '@/lib/actions'
+import { compressFormImage } from '@/lib/compress-image'
 
 type Issue = {
   name: string
@@ -26,6 +27,7 @@ export function IssueForm({ issue }: { issue: Issue }) {
     setPending(true)
     setMessage(null)
     try {
+      await compressFormImage(formData, 'image') // 封面先在瀏覽器裡壓縮
       const result = await saveIssueAction(formData)
       setMessage('error' in result ? { type: 'error', text: result.error } : { type: 'success', text: '已儲存' })
     } catch {

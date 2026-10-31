@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { WorkCard } from '@/components/work-card'
 import { PageHeading } from '@/components/editorial'
+import { makeSnippet, parseQuery, scoreWork } from '@/lib/search'
 import { Search, X, RotateCcw } from 'lucide-react'
 
 // 每頁顯示 9 篇；篩選選項的預設值
@@ -50,8 +51,26 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
     if (focusSearch) searchInputRef.current?.focus()
   }, [focusSearch])
 
-  // 依四個條件（期數、來源、文體、關鍵字）過濾；關鍵字會比對標題、作者與全文
-  const filteredWorks = sortedWorks.filter((work) => {
+  // 關鍵字：可輸入多個（空白隔開），全形半形、大小寫視為相同
+  const terms = useMemo(() => parseQuery(searchQuery), [searchQuery])
+
+  // 搜尋內容同步到網址（?q=），搜尋結果可以直接分享，按上一頁也會保留
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const url = new URL(window.location.href)
+        const q = searchQuery.trim()
+        if (q) url.searchParams.set('q', q)
+        else url.searchParams.delete('q')
+        url.searchParams.delete('focus')
+        window.history.replaceState(window.history.state, '', url.toString())
+      } catch {}
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // 依四個條件（期數、來源、文體、關鍵字）過濾；關鍵字會比對標題、作者、文體、期數與全文
+  const matchedWorks = sortedWorks.filter((work) => {
     const workCategory = work.category || '散文'
     const workIssue = work.issue || '第 1 期'
     const workSource = work.source_type || work.sourceType || '文薈成員創作'
@@ -60,16 +79,17 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
     const matchIssue = selectedIssue === '全部期數' || workIssue === selectedIssue
     const matchSource = selectedSource === '全部來源' || workSource === selectedSource
     
-    const lowercaseQuery = searchQuery.toLowerCase().trim()
-
-    const matchSearch = 
-      !lowercaseQuery ||
-      work.title?.toLowerCase().includes(lowercaseQuery) || 
-      work.author?.toLowerCase().includes(lowercaseQuery) || 
-      (work.searchText || '').includes(lowercaseQuery)
-
-    return matchCategory && matchIssue && matchSource && matchSearch
+    return matchCategory && matchIssue && matchSource && scoreWork(work, terms) > 0
   })
+
+  // 有關鍵字時，最符合的排前面（標題符合 > 作者 > 內文）；分數相同維持原本順序
+  const filteredWorks =
+    terms.length === 0
+      ? matchedWorks
+      : matchedWorks
+          .map((work, i) => ({ work, i, s: scoreWork(work, terms) }))
+          .sort((a, b) => b.s - a.s || a.i - b.i)
+          .map((x) => x.work)
 
   useEffect(() => {
     setCurrentPage(1)
@@ -168,7 +188,7 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
               id="filter-search"
               ref={searchInputRef}
               type="search"
-              placeholder="搜尋標題、作者、內文..."
+              placeholder="搜尋標題、作者、內文（可用空白分隔多個詞）"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-11 w-full border-b border-border/80 bg-transparent pr-8 pb-1 font-serif text-sm text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-foreground transition-colors"
@@ -191,7 +211,7 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
 
       {/* ===== 篩選結果回饋與重置按鈕 ===== */}
       <div className="mb-8 flex items-center justify-between border-b border-border pb-4 font-serif text-sm tracking-[0.15em] text-muted-foreground">
-        <span>共典藏 {filteredWorks.length} 篇作品</span>
+        <span>{terms.length > 0 ? `找到 ${filteredWorks.length} 篇作品` : `共典藏 ${filteredWorks.length} 篇作品`}</span>
         {isFiltered && (
           <button
             type="button"
@@ -205,9 +225,26 @@ function WorksContent({ dbWorks }: { dbWorks: any[] }) {
 
       {/* ===== 作品卡片區塊 ===== */}
       <section className="grid gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3">
-        {paginatedWorks.map((work, index) => (
-          <WorkCard key={work.id || index} work={work} />
-        ))}
+        {paginatedWorks.map((work, index) => {
+          // 搜尋時：關鍵字出現在內文的話，在卡片下面顯示那一段文字，關鍵字標紅
+          const snippet = terms.length > 0 ? makeSnippet(work.searchText || '', terms) : null
+          return (
+            <div key={work.id || index} className="flex flex-col gap-4">
+              <WorkCard work={work} />
+              {snippet && (
+                <p className="border-l-2 border-primary/50 pl-3 font-serif text-[13px] leading-[1.9] text-muted-foreground">
+                  {snippet.map((part, i) =>
+                    part.hit ? (
+                      <mark key={i} className="bg-transparent font-bold text-primary">{part.text}</mark>
+                    ) : (
+                      <span key={i}>{part.text}</span>
+                    )
+                  )}
+                </p>
+              )}
+            </div>
+          )
+        })}
         {filteredWorks.length === 0 && (
           <div className="col-span-full py-20 text-center">
             <p className="font-serif text-base text-muted-foreground tracking-widest mb-4">

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { BookOpen, FileText, Inbox, LayoutTemplate, User, Users } from "lucide-react";
 import { toggleSubmissionStatusAction } from "@/lib/actions";
 import { getDashboardStats } from "@/lib/queries";
+import { getLatestHealthCheck } from "@/lib/health";
 import { LogoutButton } from "@/components/logout-button";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,8 @@ export default async function AdminDashboard() {
   if (!session) redirect("/");
 
   const isAdmin = (session.user as any)?.role === "admin";
-  const stats = await getDashboardStats();
+  // 健康檢查結果讀不到（例如資料表還沒建立）也不影響後台
+  const [stats, health] = await Promise.all([getDashboardStats(), getLatestHealthCheck().catch(() => null)]);
   // 各文體作品數的長條圖，以最多的那一項當作 100% 寬度
   const maxCat = Math.max(1, ...stats.categories.map((c) => c.count));
 
@@ -75,6 +77,21 @@ export default async function AdminDashboard() {
           <StatCard label="近 30 天投稿" value={stats.last30} />
           <StatCard label="投稿審核結果" value={`${stats.publishedSubmissions}／${stats.rejectedSubmissions}`} hint="已刊登／未收錄" />
         </section>
+
+        {/* ===== 每日網站健康檢查 ===== */}
+        {health && (
+          <p
+            role="status"
+            className={`-mt-8 mb-12 flex flex-wrap items-center gap-x-2 border-l-2 pl-3 font-serif text-sm ${
+              health.ok ? "border-foreground/30 text-muted-foreground" : "border-primary text-primary"
+            }`}
+          >
+            <span>{health.ok ? "網站健康檢查：一切正常" : `網站健康檢查發現問題：${health.failed.join("、")}`}</span>
+            <span className="text-xs text-muted-foreground">
+              （{new Date(health.checkedAt).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 檢查）
+            </span>
+          </p>
+        )}
 
         {/* ===== 投稿開關 ===== */}
         <section className="mb-12 flex flex-col gap-4 border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">

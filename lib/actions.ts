@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 import { Resend } from "resend";
 import { sanitizeHtml, escapeHtml } from "./sanitize-html";
 import { ensureSchema } from "./db";
-import { normalizeHeroTitle } from "./text";
+import { isAllowedHeroMedia, normalizeHeroTitle } from "./text";
 import { getSubmissionStatus } from "./queries";
 
 // 寄信服務（Resend）。沒有設定金鑰時用假金鑰，只是為了讓 build 不會失敗；實際寄信前會先檢查金鑰是否存在
@@ -482,6 +482,8 @@ export async function updateSiteSettingsAction(formData: FormData): Promise<{ su
   const existingImageUrl = String(formData.get("existingImage") || "");
 
   if (!heroTitle) return { error: "請輸入本期大標題。" };
+  // 封面網址只能是站內圖片或自家 Blob 空間（影片由瀏覽器直接上傳後把網址傳進來）
+  if (!isAllowedHeroMedia(existingImageUrl)) return { error: "封面檔案網址不正確，請重新上傳。" };
 
   let imageUrl = existingImageUrl;
   try {

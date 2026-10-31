@@ -44,6 +44,16 @@ async function runMigrations() {
       attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+
+  // 每日網站健康檢查的結果（只保留最近 60 筆）
+  await sql`
+    CREATE TABLE IF NOT EXISTS health_checks (
+      id SERIAL PRIMARY KEY,
+      checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ok BOOLEAN NOT NULL,
+      detail JSONB NOT NULL DEFAULT '[]'
+    )
+  `;
 }
 
 export function ensureSchema(): Promise<void> {

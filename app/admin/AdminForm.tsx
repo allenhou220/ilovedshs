@@ -6,6 +6,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { uploadEditorImageAction } from '@/lib/actions';
+import { compressFormImage, compressImageFile } from '@/lib/compress-image';
 import { ArrowLeft, Upload, Trash2, ArrowUp, ArrowDown, Plus, Image as ImageIcon, BookOpen } from 'lucide-react';
 
 // 文字編輯器只在瀏覽器端載入，載入前顯示提示文字
@@ -158,7 +159,8 @@ export default function AdminForm({
     for (const file of fileArray) {
       try {
         const formData = new FormData();
-        formData.append('file', file);
+        // 漫畫頁先壓縮；長條漫畫高度放寬，避免被縮得太小
+        formData.append('file', await compressImageFile(file, { maxWidth: 1600, maxHeight: 10000 }));
         const res = await uploadEditorImageAction(formData);
         if ('url' in res && res.url) {
           urls.push(res.url);
@@ -246,7 +248,12 @@ export default function AdminForm({
       </div>
 
       {/* 表單：標題、作者、文體、期數、來源、封面圖片、內文；送出時交給父層傳入的 handlePublish（新增、更新或發布投稿） */}
-      <form action={handlePublish} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <form
+        action={async (formData: FormData) => {
+          await compressFormImage(formData, 'image'); // 封面先在瀏覽器裡壓縮再送出
+          await handlePublish(formData);
+        }}
+        style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "hsl(var(--muted-foreground))" }}>文章標題</label>
           <input 

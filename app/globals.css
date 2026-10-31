@@ -229,3 +229,38 @@ input[type="search"]::-webkit-search-decoration {
   -webkit-appearance: none;
   appearance: none;
 }
+
+/* ===== 動畫 =====
+   .rise   ：頁面載入時由下往上淡入（可用 [--d:200ms] 設定延遲，做出先後順序）
+   .reveal ：捲動到該區塊時才淡入；用瀏覽器原生的捲動動畫，不支援的瀏覽器會直接顯示，不會看不到內容
+   使用者在系統設定「減少動態效果」時，全部關閉 */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .reveal {
+    animation: none !important;
+  }
+}

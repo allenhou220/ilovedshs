@@ -97,3 +97,22 @@ export function normalizeHeroTitle(value: string): string {
     .map((line) => Array.from(line).slice(0, HERO_TITLE_MAX_CHARS).join(''))
     .join('\n')
 }
+
+// ===== 首頁封面媒體（圖片或影片）=====
+
+/** 網址是不是影片檔（依副檔名判斷，忽略 ? 後面的參數） */
+export function isVideoUrl(url: string = ""): boolean {
+  return /\.(mp4|webm|mov)$/i.test(String(url || "").split("?")[0])
+}
+
+/** 封面媒體網址只接受：站內路徑，或 Vercel Blob 的 https 網址（避免被塞入任意外部連結） */
+export function isAllowedHeroMedia(url: string = ""): boolean {
+  if (!url) return true
+  if (/^\/images\/[\w./-]+$/.test(url)) return true
+  try {
+    const u = new URL(url)
+    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com")
+  } catch {
+    return false
+  }
+}

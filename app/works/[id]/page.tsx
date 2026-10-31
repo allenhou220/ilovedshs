@@ -42,15 +42,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const work = await findWork(id);
     if (work) {
       const cleanDesc = makeExcerpt(work.content || '', 100);
-      const displayImage = work.image_url;
+      // 分享預覽圖由同資料夾的 opengraph-image.tsx 自動產生
       return {
         title: work.title,
         description: cleanDesc || `${work.author || '匿名'} 的作品`,
         openGraph: {
           title: `${work.title}｜東山文薈`,
           description: cleanDesc,
-          images: displayImage ? [{ url: displayImage }] : [],
+          type: 'article',
+          siteName: '東山文薈',
+          locale: 'zh_TW',
         },
+        twitter: { card: 'summary_large_image' },
       };
     }
   } catch (error) {

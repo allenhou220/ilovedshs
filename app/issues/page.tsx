@@ -24,7 +24,7 @@ export default async function IssuesPage() {
       ) : (
         <div className="grid grid-cols-2 gap-x-6 gap-y-14 md:grid-cols-3 md:gap-x-10 lg:grid-cols-4">
           {issues.map((issue) => (
-            <Link key={issue.name} href={issueHref(issue.name)} className="group flex flex-col gap-4">
+            <Link key={issue.name} href={issueHref(issue.name)} className="reveal group flex flex-col gap-4">
               <IssueCover
                 name={issue.name}
                 theme={issue.theme}

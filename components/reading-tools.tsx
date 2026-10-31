@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Link2, Check, Share2 } from 'lucide-react'
+import { Link2, Check } from 'lucide-react'
 
 // 字級選項
 const SIZES = [
@@ -31,12 +31,11 @@ function applySize(id: SizeId) {
   document.documentElement.style.setProperty('--article-size', `${size.px}px`)
 }
 
-// 文章工具列：調整字級（會記住偏好）、分享
-export function ReadingTools({ title, targetId = 'article-text', allowVertical = true }: { title: string; targetId?: string; allowVertical?: boolean }) {
+// 文章工具列：調整字級與排版（會記住偏好）、複製文章連結
+export function ReadingTools({ targetId = 'article-text', allowVertical = true }: { title?: string; targetId?: string; allowVertical?: boolean }) {
   const [size, setSize] = useState<SizeId>('m')
   const [layout, setLayout] = useState<Layout>('h')
   const [copied, setCopied] = useState(false)
-  const [canNativeShare, setCanNativeShare] = useState(false)
 
   useEffect(() => {
     let saved: string | null = null
@@ -46,7 +45,6 @@ export function ReadingTools({ title, targetId = 'article-text', allowVertical =
     const initial = (SIZES.some((s) => s.id === saved) ? saved : 'm') as SizeId
     setSize(initial)
     applySize(initial)
-    setCanNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function')
     if (allowVertical) {
       let savedLayout: string | null = null
       try {
@@ -87,12 +85,7 @@ export function ReadingTools({ title, targetId = 'article-text', allowVertical =
     }
   }
 
-  const openShare = (base: string) => {
-    window.open(base + encodeURIComponent(pageUrl()), '_blank', 'noopener,noreferrer,width=600,height=560')
-  }
-
   const iconButton = 'flex size-11 items-center justify-center text-foreground transition-colors hover:text-primary'
-  const textButton = 'flex h-11 min-w-11 items-center justify-center px-1.5 font-sans text-xs font-semibold text-foreground transition-colors hover:text-primary'
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-1.5">
@@ -142,24 +135,8 @@ export function ReadingTools({ title, targetId = 'article-text', allowVertical =
 
       <div className="flex items-center gap-0.5">
         <span className="mr-1.5 font-serif text-xs tracking-[0.15em] text-muted-foreground">分享</span>
-        {canNativeShare && (
-          <button
-            type="button"
-            className={iconButton}
-            aria-label="分享"
-            onClick={() => navigator.share({ title, url: pageUrl() }).catch(() => {})}
-          >
-            <Share2 className="size-[18px]" strokeWidth={1.6} />
-          </button>
-        )}
         <button type="button" className={iconButton} aria-label={copied ? '已複製連結' : '複製連結'} onClick={copyLink}>
           {copied ? <Check className="size-[18px] text-primary" strokeWidth={2} /> : <Link2 className="size-[18px]" strokeWidth={1.6} />}
-        </button>
-        <button type="button" className={textButton} aria-label="分享到 LINE" onClick={() => openShare('https://social-plugins.line.me/lineit/share?url=')}>
-          LINE
-        </button>
-        <button type="button" className={textButton} aria-label="分享到 Facebook" onClick={() => openShare('https://www.facebook.com/sharer/sharer.php?u=')}>
-          FB
         </button>
         <span aria-live="polite" className="sr-only">{copied ? '已複製連結' : ''}</span>
       </div>

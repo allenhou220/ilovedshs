@@ -24,16 +24,10 @@ export default async function AuthorsPage() {
       ) : (
         <ul className="grid grid-cols-2 gap-px border border-foreground/20 bg-foreground/20 sm:grid-cols-3 lg:grid-cols-5">
           {authors.map((a) => (
-            <li key={a.name} className="bg-background">
-              <Link href={authorHref(a.name)} className="group flex h-full min-h-36 flex-col justify-between gap-6 p-5 transition-colors hover:bg-card">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-10 items-center justify-center border-[1.5px] border-primary font-serif text-lg font-bold text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
-                >
-                  {Array.from(a.name)[0]}
-                </span>
+            <li key={a.name} className="reveal bg-background">
+              <Link href={authorHref(a.name)} className="group flex h-full min-h-24 flex-col justify-end gap-6 p-5 transition-colors hover:bg-card">
                 <span className="flex items-baseline justify-between gap-3">
-                  <span className="font-serif text-lg font-bold tracking-[0.2em]">{a.name}</span>
+                  <span className="font-serif text-lg font-bold tracking-[0.2em] transition-colors group-hover:text-primary">{a.name}</span>
                   <span className="font-serif text-xs tracking-[0.1em] text-muted-foreground">{a.count} 篇</span>
                 </span>
               </Link>

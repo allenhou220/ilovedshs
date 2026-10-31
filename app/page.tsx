@@ -2,6 +2,7 @@ import { sql } from "@vercel/postgres"
 import Link from 'next/link'
 import { WorkCard } from '@/components/work-card'
 import LoginModal from '@/components/login-modal'
+import { HeroMedia } from '@/components/hero-media'
 import { IssueCover, ManuscriptTitle, SectionTitle } from '@/components/editorial'
 import { getIssue, getIssues, getSiteSettings, getSubmissionStatus, toSummary } from "@/lib/queries"
 import { issueHref, workHref } from "@/lib/text"
@@ -84,12 +85,15 @@ export default async function Page() {
       {/* ================= 本期專題 ================= */}
       <section className="mx-auto max-w-7xl px-5 py-14 md:px-8 md:py-20">
         <div className="grid gap-12 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-16">
-          <div className="flex flex-col items-start gap-8">
-            <p className="font-serif text-sm font-bold tracking-[0.1em] text-primary">
-              {[issueInfo || '本期專題', issueYear].filter(Boolean).join('　')}
-            </p>
-            <ManuscriptTitle text={heroTitle} />
-            <div className="flex max-w-[26rem] flex-col gap-6">
+          {/* 左欄：寬螢幕時期數＋標題靠上、引言＋按鈕靠下，和右邊封面圖上下對齊（pb-8 扣掉圖片下方說明文字的高度） */}
+          <div className="flex flex-col items-start gap-8 lg:justify-between lg:pb-8">
+            <div className="flex flex-col items-start gap-8">
+              <p className="rise font-serif text-sm font-bold tracking-[0.1em] text-primary">
+                {[issueInfo || '本期專題', issueYear].filter(Boolean).join('　')}
+              </p>
+              <ManuscriptTitle text={heroTitle} className="rise [--d:120ms]" />
+            </div>
+            <div className="rise flex max-w-[26rem] flex-col gap-6 [--d:260ms]">
               <p className="font-serif text-[17px] leading-[2.05] text-foreground/85">
                 {settings?.hero_subtitle || '我們以文字留住放學後的光、雨季裡的窗，以及那些還來不及說出口的青春。'}
               </p>
@@ -112,14 +116,9 @@ export default async function Page() {
             </div>
           </div>
 
-          <figure className="flex flex-col gap-3">
+          <figure className="rise flex flex-col gap-3 [--d:200ms]">
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={settings?.hero_image_url || "/images/hero-library.png"}
-                alt="本期封面"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+              <HeroMedia src={settings?.hero_image_url || "/images/hero-library.png"} alt="本期封面" />
             </div>
             {currentIssue && (
               <figcaption className="text-right font-serif text-sm text-muted-foreground">本期收錄 {currentIssue.count} 篇作品</figcaption>
@@ -130,7 +129,7 @@ export default async function Page() {
 
       {/* ================= 本期目錄 ================= */}
       {toc.length > 0 && currentIssue && (
-        <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
+        <section className="reveal mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
           <div>
             <SectionTitle title="本期目錄" sub={currentIssue.name} link={{ href: issueHref(currentIssue.name), label: '完整期刊' }} />
             <ol className="grid gap-x-16 md:grid-cols-2">
@@ -154,24 +153,24 @@ export default async function Page() {
       )}
 
       {/* ================= 編輯精選 ================= */}
-      <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
+      <section className="reveal mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
         <SectionTitle title="編輯精選" />
         <WorkCard work={featuredWork} featured />
       </section>
 
       {/* ================= 最新作品 ================= */}
       {latestWorks.length > 0 && (
-        <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
+        <section className="reveal mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
           <SectionTitle title="最新作品" link={{ href: '/works', label: '所有作品' }} />
           <div className="grid gap-x-10 gap-y-16 md:grid-cols-3">
-            {latestWorks.map((work) => <WorkCard key={work.id} work={work} />)}
+            {latestWorks.map((work) => <div key={work.id} className="reveal"><WorkCard work={work} /></div>)}
           </div>
         </section>
       )}
 
       {/* ================= 期刊 ================= */}
       {issues.length > 0 && (
-        <section className="mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
+        <section className="reveal mx-auto max-w-7xl px-5 pb-20 md:px-8 md:pb-24">
           <SectionTitle title="期刊" link={{ href: '/issues', label: '歷期刊物' }} />
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4 md:gap-8">
             {issues.slice(0, 4).map((issue) => (

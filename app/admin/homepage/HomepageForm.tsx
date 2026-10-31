@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 import { updateSiteSettingsAction } from "@/lib/actions";
+import { HeroMedia } from "@/components/hero-media";
+import { compressImageFile } from "@/lib/compress-image";
 import { HERO_TITLE_MAX_CHARS, HERO_TITLE_MAX_LINES, normalizeHeroTitle } from "@/lib/text";
 
 type Values = {
@@ -16,6 +19,8 @@ type Values = {
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
 const MAX_IMAGE_MB = 10;
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const MAX_VIDEO_MB = 50;
 const SUBTITLE_MAX = 200;
 const DEFAULT_IMAGE = "/images/hero-library.png";
 
@@ -64,19 +69,23 @@ export default function HomepageForm({ initial }: { initial: Values }) {
   const dirty = newImage !== null || (Object.keys(values) as (keyof Values)[]).some((k) => values[k] !== saved[k]);
 
   // 選擇圖片：先在前端檢查格式與大小，通過才顯示預覽
-  function pickImage(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function pickImage(e: ChangeEvent<HTMLInputElement>) {
+    let file = e.target.files?.[0];
     setMessage(null);
     if (!file) return setNewImage(null);
-    if (!IMAGE_TYPES.includes(file.type)) {
+    const isVideo = VIDEO_TYPES.includes(file.type);
+    if (!isVideo && !IMAGE_TYPES.includes(file.type)) {
       e.target.value = "";
       setNewImage(null);
-      return setMessage({ type: "error", text: "只接受 JPG、PNG、GIF、WebP、AVIF 圖片。" });
+      return setMessage({ type: "error", text: "只接受 JPG、PNG、GIF、WebP、AVIF 圖片，或 MP4、WebM、MOV 影片。" });
     }
-    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+    // 圖片先在瀏覽器裡壓縮（首頁大圖放寬到 2400 寬），再檢查大小
+    if (!isVideo) file = await compressImageFile(file, { maxWidth: 2400 });
+    const limitMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
+    if (file.size > limitMb * 1024 * 1024) {
       e.target.value = "";
       setNewImage(null);
-      return setMessage({ type: "error", text: `圖片不可超過 ${MAX_IMAGE_MB}MB。` });
+      return setMessage({ type: "error", text: `${isVideo ? "影片" : "圖片"}不可超過 ${limitMb}MB。` });
     }
     setNewImage({ file, url: URL.createObjectURL(file) });
   }
@@ -100,10 +109,22 @@ export default function HomepageForm({ initial }: { initial: Values }) {
     fd.set("heroSubtitle", values.heroSubtitle);
     fd.set("submissionDeadline", values.submissionDeadline);
     fd.set("existingImage", values.heroImage);
-    if (newImage) fd.set("image", newImage.file);
 
     startTransition(async () => {
       try {
+        if (newImage && VIDEO_TYPES.includes(newImage.file.type)) {
+          // 影片檔案較大：由瀏覽器直接傳到 Blob，再把網址交給伺服器儲存
+          const ext = newImage.file.name.split(".").pop()?.toLowerCase() || "mp4";
+          setMessage({ type: "ok", text: "影片上傳中，請稍候⋯" });
+          const blob = await upload(`hero/cover.${ext}`, newImage.file, {
+            access: "public",
+            handleUploadUrl: "/api/hero-upload",
+            contentType: newImage.file.type,
+          });
+          fd.set("existingImage", blob.url);
+        } else if (newImage) {
+          fd.set("image", newImage.file);
+        }
         const result = await updateSiteSettingsAction(fd);
         if ("error" in result) {
           setMessage({ type: "error", text: result.error });
@@ -115,8 +136,9 @@ export default function HomepageForm({ initial }: { initial: Values }) {
         clearImage();
         setMessage({ type: "ok", text: "已儲存，首頁已更新。" });
         router.refresh();
-      } catch {
-        setMessage({ type: "error", text: "儲存失敗，請確認網路連線或重新登入後再試。" });
+      } catch (error) {
+        console.error("儲存首頁設定失敗:", error);
+        setMessage({ type: "error", text: "儲存失敗（影片可能上傳不成功），請確認網路連線或重新登入後再試。" });
       }
     });
   }
@@ -185,11 +207,11 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           />
         </Field>
 
-        <Field label="封面圖片" htmlFor="image" hint={`JPG、PNG、WebP 等，${MAX_IMAGE_MB}MB 以內，橫式 4:3 最合適。不選就維持目前的圖片。`}>
+        <Field label="封面圖片" htmlFor="image" hint={`圖片（JPG、PNG、WebP 等）${MAX_IMAGE_MB}MB 以內，或影片（MP4、WebM）${MAX_VIDEO_MB}MB 以內；橫式 4:3 最合適。影片會在首頁靜音、自動循環播放。不選就維持目前的內容。`}>
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex min-h-11 cursor-pointer items-center border border-foreground px-5 font-serif text-sm transition-colors hover:bg-foreground hover:text-background">
-              選擇圖片
-              <input ref={fileRef} id="image" type="file" accept={IMAGE_TYPES.join(",")} onChange={pickImage} className="sr-only" />
+              選擇圖片或影片
+              <input ref={fileRef} id="image" type="file" accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")} onChange={pickImage} className="sr-only" />
             </label>
             {newImage ? (
               <>
@@ -199,7 +221,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
                 </button>
               </>
             ) : (
-              <span className="font-serif text-sm text-muted-foreground">{values.heroImage ? "使用目前的圖片" : "使用預設圖片"}</span>
+              <span className="font-serif text-sm text-muted-foreground">{values.heroImage ? "使用目前的封面" : "使用預設圖片"}</span>
             )}
           </div>
         </Field>
@@ -249,9 +271,8 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           )}
           {values.heroSubtitle && <p className="font-serif text-sm leading-[1.9] text-foreground/85">{values.heroSubtitle}</p>}
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageSrc} alt="封面預覽" className="absolute inset-0 h-full w-full object-cover" />
-            {newImage && <span className="absolute left-0 top-0 bg-primary px-2 py-1 font-serif text-xs text-primary-foreground">新圖片・尚未儲存</span>}
+            <HeroMedia src={imageSrc} alt="封面預覽" video={newImage ? VIDEO_TYPES.includes(newImage.file.type) : undefined} />
+            {newImage && <span className="absolute left-0 top-0 bg-primary px-2 py-1 font-serif text-xs text-primary-foreground">新檔案・尚未儲存</span>}
           </div>
         </div>
       </aside>
