@@ -6,14 +6,12 @@ import { authOptions } from "./auth";
 import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Resend } from "resend";
+import { isMailConfigured, sendMail } from "./mailer";
 import { sanitizeHtml, escapeHtml } from "./sanitize-html";
 import { ensureSchema } from "./db";
 import { isAllowedHeroMedia, normalizeHeroTitle } from "./text";
 import { getSubmissionStatus } from "./queries";
 
-// 寄信服務（Resend）。沒有設定金鑰時用假金鑰，只是為了讓 build 不會失敗；實際寄信前會先檢查金鑰是否存在
-const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_to_pass_build");
 
 // ===== 共用：權限檢查 =====
 
@@ -227,7 +225,7 @@ export async function createUserAction(formData: FormData) {
   try {
     const { rowCount } = await sql`SELECT 1 FROM users WHERE LOWER(email) = ${email}`;
     if (rowCount !== null && rowCount > 0) {
-      return { error: "此信箱已經被註冊過囉！" };
+      return { error: "此信箱已註冊" };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -387,7 +385,7 @@ async function notifyEditors(info: {
   title: string;
   isAnonymous: boolean;
 }) {
-  if (!process.env.RESEND_API_KEY) return;
+  if (!isMailConfigured()) return;
 
   try {
     await ensureSchema();
@@ -397,24 +395,17 @@ async function notifyEditors(info: {
 
     const siteUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
+    await sendMail({
       to: recipients,
-      subject: `【新投稿通知】${info.studentClass} ${info.authorName} - 《${info.title}》`,
+      subject: `新投稿：《${info.title}》`,
       html: `
-        <div style="font-family: sans-serif; padding: 24px; color: #333; background-color: #f9f9f9; border-radius: 8px;">
-          <h2 style="color: #8c4033; margin-top: 0;">📩 收到新的學生作品投稿！</h2>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;" />
-          <p><strong>文章標題：</strong> ${escapeHtml(info.title)}</p>
-          <p><strong>文章分類：</strong> ${escapeHtml(info.category)}</p>
-          <p><strong>投稿學生：</strong> ${escapeHtml(info.studentClass)} ${info.seatNumber}號 - ${escapeHtml(info.authorName)}</p>
-          <p><strong>聯絡信箱：</strong> ${escapeHtml(info.email)}</p>
-          <p><strong>發表方式：</strong> ${info.isAnonymous ? "🕵️ 要求匿名發表" : "👤 具名發表"}</p>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
-          <a href="${escapeHtml(siteUrl)}/admin/submissions"
-             style="display: inline-block; background-color: #8c4033; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">
-            🚀 前往後台審核稿件
-          </a>
+        <div style="font-family: sans-serif; padding: 8px 0; color: #201C18; font-size: 15px; line-height: 1.8;">
+          <p style="margin: 0 0 16px; font-size: 18px; font-weight: bold;">新投稿</p>
+          <p style="margin: 0;">標題：${escapeHtml(info.title)}</p>
+          <p style="margin: 0;">文體：${escapeHtml(info.category)}</p>
+          <p style="margin: 0;">投稿者：${escapeHtml(info.studentClass)} ${info.seatNumber} 號 ${escapeHtml(info.authorName)}${info.isAnonymous ? "（匿名發表）" : ""}</p>
+          <p style="margin: 0;">信箱：${escapeHtml(info.email)}</p>
+          <p style="margin: 20px 0 0;"><a href="${escapeHtml(siteUrl)}/admin/submissions" style="color: #AF3327;">前往審核</a></p>
         </div>
       `,
     });

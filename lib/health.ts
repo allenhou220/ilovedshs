@@ -1,7 +1,7 @@
 // 網站健康檢查：每天由 Vercel 排程自動執行（見 vercel.json 與 /api/cron/health-check）
 // 檢查資料庫與幾個重要頁面能不能正常開啟；有問題就寄信通知，恢復正常時也會通知一次。
 import { sql } from "@vercel/postgres";
-import { Resend } from "resend";
+import { isMailConfigured, sendMail } from "./mailer";
 import { ensureSchema } from "./db";
 import { escapeHtml } from "./sanitize-html";
 import { workHref } from "./text";
@@ -102,34 +102,31 @@ async function alertRecipients(): Promise<string[]> {
   return rows.map((u) => String(u.email || "")).filter(Boolean);
 }
 
-/** 寄出檢查結果通知；kind = "down"（出問題）或 "recovered"（恢復正常） */
-export async function sendHealthAlert(report: HealthReport, kind: "down" | "recovered", siteUrl: string) {
-  if (!process.env.RESEND_API_KEY) return false;
+/** 寄出檢查結果通知；kind = "down"（出問題）、"recovered"（恢復正常）或 "test"（手動測試） */
+export async function sendHealthAlert(report: HealthReport, kind: "down" | "recovered" | "test", siteUrl: string) {
+  if (!isMailConfigured()) return false;
   const to = await alertRecipients();
   if (to.length === 0) return false;
 
   const rows = report.results
     .map(
       (r) =>
-        `<tr><td style="padding:6px 12px 6px 0">${r.ok ? "✅" : "❌"} ${escapeHtml(r.name)}</td>` +
-        `<td style="padding:6px 0;color:#666">${r.ok ? `${r.ms} ms` : escapeHtml(r.error || "失敗")}</td></tr>`
+        `<tr><td style="padding:6px 12px 6px 0">${escapeHtml(r.name)}</td><td style="padding:6px 12px 6px 0;color:${r.ok ? "#2f6b3a" : "#AF3327"}">${r.ok ? "正常" : "失敗"}</td>` +
+        `<td style="padding:6px 0;color:#666">${r.ok ? `${r.ms} ms` : escapeHtml(r.error || "")}</td></tr>`
     )
     .join("");
   const when = new Date(report.checkedAt).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  await resend.emails.send({
-    from: process.env.RESEND_FROM || "onboarding@resend.dev",
+  return sendMail({
     to,
-    subject: kind === "down" ? "【東山文薈】網站健康檢查發現問題" : "【東山文薈】網站已恢復正常",
+    subject: kind === "down" ? "東山文薈網站異常" : kind === "test" ? "東山文薈網站自檢（測試）" : "東山文薈網站已恢復",
     html: `
       <div style="font-family:sans-serif;padding:24px;color:#201C18">
         <h2 style="margin-top:0;color:${kind === "down" ? "#AF3327" : "#2f6b3a"}">
-          ${kind === "down" ? "網站有部分功能無法正常開啟" : "網站已恢復正常"}
+          ${kind === "down" ? "網站異常" : kind === "test" ? "網站狀態正常（測試信）" : "網站已恢復"}
         </h2>
         <p style="color:#666">檢查時間：${escapeHtml(when)}</p>
         <table style="border-collapse:collapse;font-size:14px">${rows}</table>
         <p style="margin-top:20px"><a href="${escapeHtml(siteUrl)}" style="color:#AF3327">開啟網站</a></p>
       </div>`,
   });
-  return true;
 }

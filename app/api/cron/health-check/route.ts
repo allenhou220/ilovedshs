@@ -23,9 +23,12 @@ export async function GET(request: Request) {
   }
 
   // 出問題就通知；從「有問題」變回「正常」也通知一次
+  // 網址加上 ?test=1 時，不管結果如何都寄一封（用來測試寄信設定）
+  const isTest = new URL(request.url).searchParams.get("test") === "1";
   let notified = false;
   try {
     if (!report.ok) notified = await sendHealthAlert(report, "down", siteUrl);
+    else if (isTest) notified = await sendHealthAlert(report, "test", siteUrl);
     else if (previous && !previous.ok) notified = await sendHealthAlert(report, "recovered", siteUrl);
   } catch (error) {
     console.error("健康檢查通知寄送失敗:", error);

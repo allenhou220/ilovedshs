@@ -24,7 +24,6 @@ export default async function HomepageSettings() {
 
       <header className="mb-10 flex flex-col gap-3 border-b border-foreground pb-6">
         <h1 className="font-serif text-3xl font-bold tracking-[0.04em] md:text-4xl">首頁設定</h1>
-        <p className="font-serif text-sm text-muted-foreground">修改首頁最上方的期數、大標題、引言與封面圖片。右邊會即時預覽。</p>
       </header>
 
       <HomepageForm

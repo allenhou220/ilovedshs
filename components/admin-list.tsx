@@ -202,7 +202,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
             <label style={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}>關鍵字搜尋</label>
             <input
               type="text"
-              placeholder="搜尋標題、作者名稱..."
+              placeholder="搜尋標題、作者"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -242,7 +242,7 @@ export function AdminList({ works }: { works: AdminWork[] }) {
 
       {!canReorder && (
         <p style={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))', marginBottom: '10px' }}>
-          💡 目前處於多重篩選狀態；若要調整文章上下順序，請先點擊「清除篩選」。
+          篩選中無法調整順序。
         </p>
       )}
 

@@ -77,7 +77,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
     if (!isVideo && !IMAGE_TYPES.includes(file.type)) {
       e.target.value = "";
       setNewImage(null);
-      return setMessage({ type: "error", text: "只接受 JPG、PNG、GIF、WebP、AVIF 圖片，或 MP4、WebM、MOV 影片。" });
+      return setMessage({ type: "error", text: "檔案格式不支援。" });
     }
     // 圖片先在瀏覽器裡壓縮（首頁大圖放寬到 2400 寬），再檢查大小
     if (!isVideo) file = await compressImageFile(file, { maxWidth: 2400 });
@@ -115,7 +115,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
         if (newImage && VIDEO_TYPES.includes(newImage.file.type)) {
           // 影片檔案較大：由瀏覽器直接傳到 Blob，再把網址交給伺服器儲存
           const ext = newImage.file.name.split(".").pop()?.toLowerCase() || "mp4";
-          setMessage({ type: "ok", text: "影片上傳中，請稍候⋯" });
+          setMessage({ type: "ok", text: "影片上傳中⋯" });
           const blob = await upload(`hero/cover.${ext}`, newImage.file, {
             access: "public",
             handleUploadUrl: "/api/hero-upload",
@@ -134,11 +134,11 @@ export default function HomepageForm({ initial }: { initial: Values }) {
         setValues(next);
         setSaved(next);
         clearImage();
-        setMessage({ type: "ok", text: "已儲存，首頁已更新。" });
+        setMessage({ type: "ok", text: "已儲存" });
         router.refresh();
       } catch (error) {
         console.error("儲存首頁設定失敗:", error);
-        setMessage({ type: "error", text: "儲存失敗（影片可能上傳不成功），請確認網路連線或重新登入後再試。" });
+        setMessage({ type: "error", text: "儲存失敗，請稍後再試。" });
       }
     });
   }
@@ -151,10 +151,10 @@ export default function HomepageForm({ initial }: { initial: Values }) {
       {/* ===== 左：表單 ===== */}
       <div className="flex flex-col gap-8">
         <div className="grid gap-6 sm:grid-cols-2">
-          <Field label="期數" htmlFor="issueInfo" hint="顯示在大標題上方。">
+          <Field label="期數" htmlFor="issueInfo">
             <input id="issueInfo" value={values.issueInfo} onChange={set("issueInfo")} maxLength={40} className={inputClass} placeholder="第 14 期・秋季號" />
           </Field>
-          <Field label="年份（可留空）" htmlFor="issueYear">
+          <Field label="年份（選填）" htmlFor="issueYear">
             <input id="issueYear" value={values.issueYear} onChange={set("issueYear")} maxLength={40} className={inputClass} placeholder="2026" />
           </Field>
         </div>
@@ -164,7 +164,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           htmlFor="heroTitle"
           hint={
             <div className="flex flex-col gap-1">
-              <span>按 Enter 換行。最多 {HERO_TITLE_MAX_LINES} 行、每行最多 {HERO_TITLE_MAX_CHARS} 字，字越少顯示越大。</span>
+              <span>最多 {HERO_TITLE_MAX_LINES} 行，每行 {HERO_TITLE_MAX_CHARS} 字</span>
               {rawLines.length > 0 && (
                 <span className="flex flex-wrap gap-x-4">
                   {rawLines.map((l, i) => {
@@ -195,7 +195,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           />
         </Field>
 
-        <Field label="引言" htmlFor="heroSubtitle" hint={`${Array.from(values.heroSubtitle).length} / ${SUBTITLE_MAX} 字，一兩句話最好看。`}>
+        <Field label="引言" htmlFor="heroSubtitle" hint={`${Array.from(values.heroSubtitle).length} / ${SUBTITLE_MAX} 字`}>
           <textarea
             id="heroSubtitle"
             value={values.heroSubtitle}
@@ -207,7 +207,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           />
         </Field>
 
-        <Field label="封面圖片" htmlFor="image" hint={`圖片（JPG、PNG、WebP 等）${MAX_IMAGE_MB}MB 以內，或影片（MP4、WebM）${MAX_VIDEO_MB}MB 以內；橫式 4:3 最合適。影片會在首頁靜音、自動循環播放。不選就維持目前的內容。`}>
+        <Field label="封面圖片" htmlFor="image" hint={`圖片 ${MAX_IMAGE_MB}MB、影片 ${MAX_VIDEO_MB}MB 以內，建議橫式 4:3`}>
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex min-h-11 cursor-pointer items-center border border-foreground px-5 font-serif text-sm transition-colors hover:bg-foreground hover:text-background">
               選擇圖片或影片
@@ -226,7 +226,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           </div>
         </Field>
 
-        <Field label="本期截稿日期（可留空）" htmlFor="submissionDeadline" hint="會顯示在首頁和投稿頁，日期過了自動隱藏。要停止收件請到後台總覽切換。">
+        <Field label="截稿日期（選填）" htmlFor="submissionDeadline">
           <div className="flex flex-wrap items-center gap-3">
             <input id="submissionDeadline" type="date" value={values.submissionDeadline} onChange={set("submissionDeadline")} className={`${inputClass} max-w-xs`} />
             {values.submissionDeadline && (
@@ -250,7 +250,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
             {pending ? "儲存中⋯" : "儲存"}
           </button>
           <span role="status" aria-live="polite" className={`font-serif text-sm ${message?.type === "error" ? "text-primary" : "text-muted-foreground"}`}>
-            {message?.text || (dirty ? "有尚未儲存的修改" : "")}
+            {message?.text || (dirty ? "尚未儲存" : "")}
           </span>
         </div>
       </div>

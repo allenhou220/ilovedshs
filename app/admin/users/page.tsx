@@ -26,34 +26,28 @@ export default async function UsersPage() {
     <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">
       <div className="max-w-4xl mx-auto">
         
-        {/* 返回管理大廳 */}
+        {/* 返回後台 */}
         <div className="mb-8">
           <Link 
             href="/admin" 
             className="inline-flex items-center gap-2 font-serif text-xs tracking-widest text-muted-foreground hover:text-primary transition-colors"
           >
-            <ArrowLeft size={15} /> 返回管理大廳
+            <ArrowLeft size={15} /> 返回後台
           </Link>
         </div>
 
         {/* 頁面標題區塊 */}
         <header className="border-b border-border/60 pb-8 mb-10">
-          <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
-            USER MANAGEMENT / 帳號管理
-          </p>
           <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl text-foreground">
-            團隊帳號與權限管理
+            帳號管理
           </h1>
-          <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
-            新增或移除編輯成員帳號，調整管理權限與系統通知設定。
-          </p>
         </header>
 
         {/* 新增帳號表單 */}
         <section className="rounded-xl border border-border/70 bg-card/40 p-6 sm:p-8 backdrop-blur-sm shadow-sm mb-10">
           <div className="mb-6 flex items-center gap-2 pb-4 border-b border-border/40 text-foreground font-serif text-base font-light">
             <UserPlus size={17} className="text-primary" />
-            <span>新增團隊成員帳號</span>
+            <span>新增帳號</span>
           </div>
 
           <CreateUserForm />

@@ -58,7 +58,7 @@ export default function SubmissionsList({
 
   // 徹底刪除：會先跳出確認視窗，刪除後同步取消勾選
   const handleDelete = (id: number) => {
-    if (confirm("確定要徹底從資料庫刪除此稿件嗎？此動作無法復原！\n（若只是這期不收錄，建議改用「未收錄」，保留投稿紀錄）")) {
+    if (confirm("確定刪除這份稿件？刪除後無法復原。")) {
       startTransition(async () => {
         try {
           await deleteSubmissionAction(id);
@@ -72,7 +72,7 @@ export default function SubmissionsList({
 
   // 本期未收錄：從待審清單移除，但保留投稿紀錄
   const handleReject = (id: number, title: string) => {
-    if (!confirm(`將《${title}》標記為「本期未收錄」？\n稿件會從待審清單移除，但保留紀錄。`)) return;
+    if (!confirm(`將《${title}》標記為未收錄？`)) return;
     startTransition(async () => {
       try {
         await rejectSubmissionAction(id);
@@ -86,7 +86,7 @@ export default function SubmissionsList({
   // 匯出：把勾選的稿件 id 交給匯出 API，瀏覽器會直接下載壓縮檔
   const handleConfirmExport = () => {
     if (selectedIds.length === 0) {
-      alert("請先勾選至少一篇要匯出的文章！");
+      alert("請先勾選要匯出的稿件");
       return;
     }
     const url = `/api/export-submissions-word?ids=${selectedIds.join(",")}`;
@@ -98,15 +98,9 @@ export default function SubmissionsList({
       {/* 頁面標題與右上方唯一匯出控制區 */}
       <header className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-border/60 pb-8 gap-6">
         <div>
-          <p className="mb-2 font-display text-[10px] uppercase tracking-[0.12em] text-primary font-bold">
-            SUBMISSIONS / 投稿審核
-          </p>
           <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl text-foreground">
-            待審核稿件
+            投稿審核
           </h1>
-          <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
-            這裡列出了所有學生透過前台表單投遞，且尚未發布的作品。
-          </p>
         </div>
 
         <div className="flex flex-col sm:items-end gap-3">
@@ -230,7 +224,7 @@ export default function SubmissionsList({
                       <span>投稿時間：{date}</span>
                       {item.is_anonymous && (
                         <span className="text-amber-600 dark:text-amber-400 font-medium">
-                          (要求匿名)
+                          （匿名）
                         </span>
                       )}
                     </div>

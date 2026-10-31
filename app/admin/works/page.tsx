@@ -26,28 +26,22 @@ export default async function AdminWorksPage() {
     <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">
       <div className="max-w-6xl mx-auto">
         
-        {/* 返回管理大廳 */}
+        {/* 返回後台 */}
         <div className="mb-8">
           <Link 
             href="/admin" 
             className="inline-flex items-center gap-2 font-serif text-xs tracking-widest text-muted-foreground hover:text-primary transition-colors"
           >
-            <ArrowLeft size={15} /> 返回管理大廳
+            <ArrowLeft size={15} /> 返回後台
           </Link>
         </div>
 
         {/* 頁面標題與新增按鈕 */}
         <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border/60 pb-8 mb-10 gap-6">
           <div>
-            <p className="mb-2 font-display text-[10px] uppercase tracking-[0.3em] text-primary font-bold">
-              WORKS MANAGEMENT / 文章管理
-            </p>
             <h1 className="font-serif text-3xl font-light tracking-wide sm:text-4xl text-foreground">
-              已發布文章列表
+              文章管理
             </h1>
-            <p className="mt-2 font-serif text-sm text-muted-foreground font-light tracking-wide">
-              檢視與調整所有文章的精選狀態、發布順序或編輯內容。
-            </p>
           </div>
 
           <div>

@@ -54,7 +54,7 @@ export default function SubmitForm() {
       }
       setEmail(draft.fields.email);
       if (draft.fields.email && !STUDENT_EMAIL_RE.test(draft.fields.email.trim())) {
-        setEmailError("僅限使用學校信箱 (@stu.tshs.tp.edu.tw)");
+        setEmailError("請使用學校信箱（@stu.tshs.tp.edu.tw）");
       }
       setIsAnonymous(draft.fields.isAnonymous);
       setEditorContent(draft.html);
@@ -105,7 +105,7 @@ export default function SubmitForm() {
 
   // 清除草稿：表單、編輯器全部清空（公用電腦用完記得按）
   const handleClearDraft = () => {
-    if (!window.confirm("確定要清除草稿嗎？已輸入的內容會全部刪除。")) return;
+    if (!window.confirm("確定清除草稿？")) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     clearDraft();
     formRef.current?.reset();
@@ -127,7 +127,7 @@ export default function SubmitForm() {
     setEmail(value);
 
     if (value && !STUDENT_EMAIL_RE.test(value.trim())) {
-      setEmailError("僅限使用學校信箱 (@stu.tshs.tp.edu.tw)");
+      setEmailError("請使用學校信箱（@stu.tshs.tp.edu.tw）");
     } else {
       setEmailError("");
     }
@@ -171,7 +171,7 @@ export default function SubmitForm() {
         <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-full border-[1.5px] border-primary text-2xl text-primary">✓</span>
         <h3 className="font-serif text-2xl tracking-[0.15em]">投稿成功</h3>
         <p className="max-w-sm font-serif text-sm leading-[1.9] text-muted-foreground">
-          謝謝你把作品交給我們！編輯團隊會盡快閱讀，作品刊登後就會出現在「作品典藏」。
+          謝謝你的投稿，編輯會盡快閱讀。
         </p>
         <button
           type="button"
@@ -189,9 +189,9 @@ export default function SubmitForm() {
       {/* 還原草稿的提示 */}
       {restored && (
         <div className="flex flex-wrap items-center justify-between gap-3 border border-primary/40 bg-primary/5 px-4 py-3 font-serif text-sm" role="status">
-          <span>已還原你上次還沒送出的內容，可以接著寫。</span>
+          <span>已還原上次未送出的內容。</span>
           <button type="button" onClick={handleClearDraft} className="min-h-11 text-primary underline underline-offset-4">
-            清除草稿、重新開始
+            清除草稿
           </button>
         </div>
       )}
@@ -233,7 +233,7 @@ export default function SubmitForm() {
           </div>
 
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-foreground">聯絡信箱 (限學校信箱)</label>
+            <label className="mb-1 block text-sm font-medium text-foreground">學校信箱</label>
             <input 
               type="email" 
               name="email" 
@@ -247,7 +247,7 @@ export default function SubmitForm() {
             />
             {emailError && (
               <p className="mt-1 text-xs font-semibold text-destructive">
-                ⚠️ {emailError}
+                {emailError}
               </p>
             )}
           </div>
@@ -264,7 +264,7 @@ export default function SubmitForm() {
             className="h-4 w-4 rounded border-border bg-background accent-primary cursor-pointer"
           />
           <label htmlFor="isAnonymous" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
-            以匿名發表作品 (發布時前台將不顯示真實姓名)
+            匿名發表
           </label>
         </div>
       </div>
@@ -296,7 +296,7 @@ export default function SubmitForm() {
             </select>
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-foreground">封面圖片 (選填)</label>
+            <label className="mb-1 block text-sm font-medium text-foreground">封面圖片（選填）</label>
             <input 
               type="file" 
               name="image" 
@@ -317,15 +317,12 @@ export default function SubmitForm() {
         ) : (
           <div className="min-h-[300px] rounded-md border border-border bg-background" />
         )}
-        <p className="text-xs text-muted-foreground mt-1">
-          提示：圈選文字即可切換標題大小、套用粗體、斜體與底線。
-        </p>
         {/* 草稿狀態：只存在這台裝置的瀏覽器 */}
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-live="polite">
           <span>
             {savedAt
-              ? `已自動保存草稿（${new Date(savedAt).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}），只存在這台裝置。`
-              : "輸入的內容會自動保存在這台裝置，不小心關掉也不會不見。"}
+              ? `草稿已自動保存 ${new Date(savedAt).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`
+              : ""}
           </span>
           {savedAt && !restored && (
             <button type="button" onClick={handleClearDraft} className="min-h-8 underline underline-offset-4 hover:text-primary">
@@ -335,7 +332,7 @@ export default function SubmitForm() {
         </p>
       </div>
 
-      {/* 🍯 防機器人誘餌欄位 (Honeypot) */}
+      {/* 防機器人誘餌欄位 (Honeypot) */}
       <div className="hidden" aria-hidden="true" style={{ display: "none" }}>
         <input type="text" name="website_hp" tabIndex={-1} autoComplete="off" />
       </div>

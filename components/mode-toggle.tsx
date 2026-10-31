@@ -49,7 +49,7 @@ export function ModeToggle() {
           clipPath: isDark ? [...clipPath].reverse() : clipPath,
         },
         {
-          duration: 850, // 💡 放慢全站圓形波浪擴散速度：從 500ms 延長至 850ms
+          duration: 850, // 放慢全站圓形波浪擴散速度：從 500ms 延長至 850ms
           easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
           pseudoElement: isDark
             ? '::view-transition-old(root)'
@@ -80,7 +80,7 @@ export function ModeToggle() {
         <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
       </svg>
 
-      {/* 💡 放慢拉桿滑動速度：採用 duration-700 與平緩彈性曲線 */}
+      {/* 放慢拉桿滑動速度：採用 duration-700 與平緩彈性曲線 */}
       <span
         className={`relative inline-flex size-5 items-center justify-center rounded-full bg-background shadow-md transition-transform duration-700 ${
           isDark ? 'translate-x-8' : 'translate-x-1'

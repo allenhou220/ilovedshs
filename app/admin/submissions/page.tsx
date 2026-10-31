@@ -26,13 +26,13 @@ export default async function SubmissionsPage() {
     <main className="min-h-screen bg-background text-foreground py-16 px-5 sm:px-8">
       <div className="max-w-6xl mx-auto">
         
-        {/* 返回管理大廳 */}
+        {/* 返回後台 */}
         <div className="mb-8">
           <Link 
             href="/admin" 
             className="inline-flex items-center gap-2 font-serif text-xs tracking-widest text-muted-foreground hover:text-primary transition-colors"
           >
-            <ArrowLeft size={15} /> 返回管理大廳
+            <ArrowLeft size={15} /> 返回後台
           </Link>
         </div>
 

@@ -27,12 +27,12 @@ function StatCard({ label, value, hint, href }: { label: string; value: number |
   );
 }
 
-// 後台功能選單的項目（名稱、說明與連結）
+// 後台功能選單的項目（名稱與連結）
 const MENU = [
-  { href: "/admin/works", icon: FileText, title: "文章上架管理", desc: "新增、編輯、刪除文章，設定排序與首頁精選。" },
-  { href: "/admin/submissions", icon: Inbox, title: "學生投稿審核", desc: "閱讀投稿、發布作品，或標記本期未收錄並留下回饋。" },
-  { href: "/admin/issues", icon: BookOpen, title: "期刊管理", desc: "設定每一期的主題、卷首語、編輯名單與封面。" },
-  { href: "/admin/homepage", icon: LayoutTemplate, title: "首頁外觀設定", desc: "修改首頁大標題、引言文字與封面圖片。" },
+  { href: "/admin/works", icon: FileText, title: "文章管理" },
+  { href: "/admin/submissions", icon: Inbox, title: "投稿審核" },
+  { href: "/admin/issues", icon: BookOpen, title: "期刊管理" },
+  { href: "/admin/homepage", icon: LayoutTemplate, title: "首頁設定" },
 ];
 
 // 後台總覽：沒登入就導回首頁；「帳號管理」等僅限總管理員的項目只對 admin 顯示
@@ -52,9 +52,8 @@ export default async function AdminDashboard() {
         {/* ===== 頂部 ===== */}
         <header className="mb-10 flex flex-col justify-between gap-6 border-b border-foreground pb-8 md:flex-row md:items-end">
           <div>
-            <p className="mb-2 font-display text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Editorial Desk ／ 編輯工作檯</p>
-            <h1 className="font-serif text-3xl font-light tracking-[0.12em] sm:text-4xl md:text-5xl">後台總覽</h1>
-            <p className="mt-2 font-serif text-sm text-muted-foreground">歡迎回來，{session.user?.email}</p>
+            <h1 className="font-serif text-3xl font-light tracking-[0.12em] sm:text-4xl md:text-5xl">後台</h1>
+            <p className="mt-2 font-serif text-sm text-muted-foreground">{session.user?.email}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
@@ -72,10 +71,10 @@ export default async function AdminDashboard() {
 
         {/* ===== 數據 ===== */}
         <section aria-label="數據總覽" className="mb-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="已發布作品" value={stats.totalWorks} hint={`其中學生投稿 ${stats.studentWorks} 篇`} href="/admin/works" />
-          <StatCard label="待審稿件" value={stats.pending} hint={stats.pending > 0 ? "點此開始審稿" : "目前沒有待審稿件"} href="/admin/submissions" />
+          <StatCard label="已發布作品" value={stats.totalWorks} hint={`學生投稿 ${stats.studentWorks} 篇`} href="/admin/works" />
+          <StatCard label="待審稿件" value={stats.pending} href="/admin/submissions" />
           <StatCard label="近 30 天投稿" value={stats.last30} />
-          <StatCard label="投稿審核結果" value={`${stats.publishedSubmissions}／${stats.rejectedSubmissions}`} hint="已刊登／未收錄" />
+          <StatCard label="已刊登／未收錄" value={`${stats.publishedSubmissions}／${stats.rejectedSubmissions}`} />
         </section>
 
         {/* ===== 每日網站健康檢查 ===== */}
@@ -86,7 +85,7 @@ export default async function AdminDashboard() {
               health.ok ? "border-foreground/30 text-muted-foreground" : "border-primary text-primary"
             }`}
           >
-            <span>{health.ok ? "網站健康檢查：一切正常" : `網站健康檢查發現問題：${health.failed.join("、")}`}</span>
+            <span>{health.ok ? "網站狀態正常" : `網站異常：${health.failed.join("、")}`}</span>
             <span className="text-xs text-muted-foreground">
               （{new Date(health.checkedAt).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 檢查）
             </span>
@@ -97,7 +96,7 @@ export default async function AdminDashboard() {
         <section className="mb-12 flex flex-col gap-4 border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span aria-hidden="true" className={`size-2.5 rounded-full ${stats.isSubmissionOpen ? "bg-emerald-600" : "bg-destructive"}`} />
-            <span className="font-serif text-base">前台投稿目前{stats.isSubmissionOpen ? "開放中" : "已停用"}</span>
+            <span className="font-serif text-base">投稿{stats.isSubmissionOpen ? "開放中" : "已停用"}</span>
           </div>
           {isAdmin ? (
             <form action={toggleSubmissionStatusAction}>
@@ -109,7 +108,7 @@ export default async function AdminDashboard() {
                     : "border-emerald-700/50 text-emerald-700 hover:bg-emerald-600/10 dark:text-emerald-400"
                 }`}
               >
-                {stats.isSubmissionOpen ? "停用前台投稿" : "開放前台投稿"}
+                {stats.isSubmissionOpen ? "停用投稿" : "開放投稿"}
               </button>
             </form>
           ) : (
@@ -122,7 +121,7 @@ export default async function AdminDashboard() {
           <section className="border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="font-serif text-lg tracking-[0.1em]">最新待審稿件</h2>
-              <Link href="/admin/submissions" className="font-serif text-xs tracking-[0.1em] text-primary">全部稿件 →</Link>
+              <Link href="/admin/submissions" className="font-serif text-xs tracking-[0.1em] text-primary">全部 →</Link>
             </div>
             {stats.recent.length === 0 ? (
               <p className="px-5 py-10 text-center font-serif text-sm text-muted-foreground">目前沒有待審稿件。</p>
@@ -170,15 +169,12 @@ export default async function AdminDashboard() {
 
         {/* ===== 功能選單 ===== */}
         <section aria-label="管理功能" className="grid gap-4 sm:grid-cols-2">
-          {MENU.map(({ href, icon: Icon, title, desc }) => (
-            <Link key={href} href={href} className="group flex gap-5 border border-border bg-card p-6 transition-colors hover:border-foreground">
+          {MENU.map(({ href, icon: Icon, title }) => (
+            <Link key={href} href={href} className="group flex items-center gap-5 border border-border bg-card p-6 transition-colors hover:border-foreground">
               <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
                 <Icon size={22} />
               </span>
-              <span className="flex flex-col gap-1.5">
-                <span className="font-serif text-xl tracking-[0.08em] transition-colors group-hover:text-primary">{title}</span>
-                <span className="font-serif text-sm leading-[1.8] text-muted-foreground">{desc}</span>
-              </span>
+              <span className="font-serif text-xl tracking-[0.08em] transition-colors group-hover:text-primary">{title}</span>
             </Link>
           ))}
         </section>

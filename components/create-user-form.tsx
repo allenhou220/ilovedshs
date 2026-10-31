@@ -65,10 +65,10 @@ export function CreateUserForm() {
           <button
             type="button"
             onClick={() => setPassword(generateRandomPassword())}
-            title="隨機產生密碼"
+            title="產生隨機密碼"
             className="shrink-0 rounded-md border border-border/80 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
           >
-            🎲
+            隨機
           </button>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function CreateUserForm() {
       <div className="md:col-span-2">
         <label className={labelClass}>身分權限</label>
         <select name="role" defaultValue="editor" className={`${inputClass} cursor-pointer`}>
-          <option value="editor" className="bg-background text-foreground">編輯 (老師/學生)</option>
+          <option value="editor" className="bg-background text-foreground">編輯</option>
           <option value="admin" className="bg-background text-foreground">總管理員</option>
         </select>
       </div>
@@ -93,7 +93,7 @@ export function CreateUserForm() {
 
       {password && (
         <p className="md:col-span-12 text-xs text-amber-600 dark:text-amber-400">
-          提交前記得把這組密碼告訴對方，之後就看不到明碼了：<strong className="font-mono">{password}</strong>
+          建立後請把密碼告訴對方：<strong className="font-mono">{password}</strong>
         </p>
       )}
       {message && (

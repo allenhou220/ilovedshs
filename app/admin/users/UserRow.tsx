@@ -60,7 +60,7 @@ export default function UserRow({ user, isCurrentUser }: { user: any, isCurrentU
           }`}
         >
           {user.receive_notifications ? <Bell size={14} /> : <BellOff size={14} />}
-          {user.receive_notifications ? "接收通知" : "拒絕通知"}
+          {user.receive_notifications ? "通知開啟" : "通知關閉"}
         </button>
 
         {/* 權限選單 */}
@@ -70,7 +70,7 @@ export default function UserRow({ user, isCurrentUser }: { user: any, isCurrentU
           disabled={isPending || isCurrentUser}
           className="bg-card border border-border text-foreground text-xs rounded px-2 py-1.5 cursor-pointer focus:outline-none focus:border-foreground disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <option value="editor">編輯 (老師/學生)</option>
+          <option value="editor">編輯</option>
           <option value="admin">總管理員</option>
         </select>
 

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         .filter((id) => id.length > 0);
 
       if (ids.length > 0) {
-        // 💡 加上 as any 轉型，解決 @vercel/postgres 範本字面值不接收純 string[] 的型別警告
+        // 加上 as any 轉型，解決 @vercel/postgres 範本字面值不接收純 string[] 的型別警告
         const result = await sql`
           SELECT * FROM submissions 
           WHERE id::text = ANY(${ids as any})

@@ -19,7 +19,7 @@ export default async function ReviewSubmissionPage({
     redirect("/");
   }
 
-  // 💡 解析 async params，確保能正確拿到 URL 中的投稿 ID
+  // 解析 async params，確保能正確拿到 URL 中的投稿 ID
   const resolvedParams = await params;
   const id = resolvedParams.id;
 
@@ -54,9 +54,9 @@ export default async function ReviewSubmissionPage({
         {/* 學生投稿資訊卡片 */}
         <div className="mb-8 bg-card border border-border rounded-lg p-6 space-y-2">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-bold text-primary">📝 學生投稿資訊</h2>
+            <h2 className="text-lg font-bold text-primary">投稿資訊</h2>
             <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded font-mono">
-              {submission.is_anonymous ? "🕵️ 要求匿名發表" : "👤 具名發表"}
+              {submission.is_anonymous ? "匿名發表" : "具名發表"}
             </span>
           </div>
           <p className="text-sm text-foreground/80"><strong>班級座號：</strong> {submission.class} {submission.seat_number} 號</p>

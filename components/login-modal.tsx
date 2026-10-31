@@ -71,8 +71,7 @@ export default function LoginModal() {
             <p className="mb-5 flex justify-center">
               <span aria-hidden="true" className="inline-flex size-10 items-center justify-center border-[1.5px] border-primary font-serif text-lg font-bold text-primary">薈</span>
             </p>
-            <h2 id="login-title" className="mb-1 text-center font-serif text-2xl tracking-[0.12em]">登入系統</h2>
-            <p className="mb-7 text-center text-xs tracking-[0.2em] text-muted-foreground">文薈管理員專區</p>
+            <h2 id="login-title" className="mb-7 text-center font-serif text-2xl tracking-[0.12em]">後台登入</h2>
 
             <form onSubmit={handleLogin} className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5 text-sm">
@@ -84,7 +83,7 @@ export default function LoginModal() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="min-h-11 w-full border border-input bg-background px-3 text-sm transition-colors focus:border-foreground"
-                  placeholder="輸入管理員信箱"
+                  placeholder=""
                 />
               </label>
 
@@ -97,7 +96,7 @@ export default function LoginModal() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="min-h-11 w-full border border-input bg-background px-3 text-sm transition-colors focus:border-foreground"
-                  placeholder="輸入密碼"
+                  placeholder=""
                 />
               </label>
 
@@ -108,7 +107,7 @@ export default function LoginModal() {
                 disabled={isLoading}
                 className="mt-3 min-h-12 w-full bg-foreground px-4 font-serif text-sm tracking-[0.12em] text-background transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {isLoading ? "登入中..." : "確認登入"}
+                {isLoading ? "登入中…" : "登入"}
               </button>
             </form>
           </div>

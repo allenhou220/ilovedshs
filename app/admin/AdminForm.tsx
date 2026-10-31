@@ -14,7 +14,7 @@ const BlockNoteEditor = dynamic(() => import('@/components/blocknote-editor'), {
   ssr: false,
   loading: () => (
     <p style={{ color: 'hsl(var(--muted-foreground))', padding: '0 24px', fontSize: '14px' }}>
-      編輯器加載中...
+      載入中…
     </p>
   ),
 });
@@ -86,7 +86,7 @@ export default function AdminForm({
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
-  // 💡 漫畫專用頁面狀態
+  // 漫畫專用頁面狀態
   const [comicPages, setComicPages] = useState<string[]>([]);
   const [comicUploading, setComicUploading] = useState(0);
   const [imageUrlInput, setImageUrlInput] = useState('');
@@ -299,13 +299,13 @@ export default function AdminForm({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           <div>
             <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "hsl(var(--muted-foreground))" }}>
-              刊物期數 {isStudent && "（學生投稿免填）"}
+              刊物期數
             </label>
             <input 
               type="text" 
               name="issue" 
               disabled={isStudent}
-              placeholder={isStudent ? "學生投稿不需填寫期數" : "例如：第 1 期 或 2026特刊"} 
+              placeholder={isStudent ? "學生投稿免填" : "第 1 期"} 
               value={isStudent ? "" : issue} 
               onChange={(e) => setIssue(e.target.value)} 
               style={{ 
@@ -345,7 +345,7 @@ export default function AdminForm({
         </div>
 
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "hsl(var(--muted-foreground))" }}>封面圖片{defaultValues ? "（不選則保留原圖）" : ""}</label>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "hsl(var(--muted-foreground))" }}>封面圖片</label>
           <input
             type="file"
             name="image"
@@ -380,7 +380,7 @@ export default function AdminForm({
                   fontWeight: "bold",
                 }}
               >
-                👁️ 展開前台預覽
+                預覽
               </button>
             </label>
             
@@ -393,7 +393,7 @@ export default function AdminForm({
               borderRadius: "4px",
               border: isOverLimit ? "1px solid hsl(var(--destructive))" : "none"
             }}>
-              {isOverLimit ? "⚠️ 超過上限：" : "容量計算："}
+              {isOverLimit ? "超過上限：" : ""}
               {displaySize} / 10 MB
             </span>
           </div>
@@ -420,7 +420,7 @@ export default function AdminForm({
                       fontWeight: "500"
                     }}
                   >
-                    <Upload size={16} /> 批量選擇漫畫圖檔
+                    <Upload size={16} /> 上傳漫畫頁
                     <input 
                       type="file" 
                       multiple 
@@ -437,7 +437,7 @@ export default function AdminForm({
                 <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
                   <input 
                     type="text" 
-                    placeholder="或輸入外連漫畫圖片 URL..." 
+                    placeholder="或貼上圖片網址" 
                     value={imageUrlInput}
                     onChange={(e) => setImageUrlInput(e.target.value)}
                     style={{ flex: 1, padding: "8px 12px", background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))", borderRadius: "4px", fontSize: "14px" }}
@@ -507,7 +507,7 @@ export default function AdminForm({
                 ) : (
                   <div style={{ textAlign: "center", padding: "40px 0", border: "1px dashed hsl(var(--border))", borderRadius: "4px", color: "hsl(var(--muted-foreground))" }}>
                     <ImageIcon size={32} style={{ margin: "0 auto 8px auto", opacity: 0.5 }} />
-                    <p style={{ fontSize: "14px" }}>尚未上傳任何漫畫頁面，請點擊上方按鈕批量上傳。</p>
+                    <p style={{ fontSize: "14px" }}>尚未上傳漫畫頁面</p>
                   </div>
                 )}
               </div>
@@ -519,7 +519,7 @@ export default function AdminForm({
                     onChange={setEditorContent}
                   />
                 ) : (
-                  <p style={{ color: 'hsl(var(--muted-foreground))', padding: '0 24px', fontSize: '14px' }}>編輯器初始化中...</p>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', padding: '0 24px', fontSize: '14px' }}>載入中…</p>
                 )}
               </div>
             )}
@@ -534,26 +534,22 @@ export default function AdminForm({
         />
       </form>
 
-      {/* 💡 前台預覽 Modal（包含漫畫直條漫模組） */}
+      {/* 前台預覽 Modal（包含漫畫直條漫模組） */}
       {activeTab === "preview" && (
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-background text-foreground">
           <div className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-background/90 backdrop-blur-md px-6 py-4 shadow-sm">
-            <span className="text-sm font-bold tracking-widest text-muted-foreground">文薈 - 前台模擬預覽</span>
+            <span className="text-sm font-bold tracking-widest text-muted-foreground">預覽</span>
             <button 
               type="button" 
               onClick={() => setActiveTab("edit")}
               className="rounded-sm bg-foreground px-5 py-2 text-sm font-bold text-background transition-opacity hover:opacity-90"
             >
-              退出預覽 / 繼續編輯
+              返回編輯
             </button>
           </div>
           
           <article className="min-h-screen">
             <header className="mx-auto max-w-5xl px-5 pb-10 pt-16 text-center md:px-8 md:pb-14 md:pt-24">
-              <div className="mb-12 inline-flex items-center gap-2 text-xs tracking-[0.18em] text-muted-foreground opacity-50">
-                ← 返回作品總覽 (這只是預覽哦)
-              </div>
-
               <p className="mb-6 text-sm tracking-[0.25em] text-muted-foreground">
                 {isStudent ? "學生投稿" : issue} ・ {category || '散文'}
               </p>
@@ -580,7 +576,7 @@ export default function AdminForm({
               </div>
             )}
 
-            {/* 💡 預覽條件分流：漫畫條漫模式 vs 文字文章模式 */}
+            {/* 預覽條件分流：漫畫條漫模式 vs 文字文章模式 */}
             {category === '漫畫' ? (
               <section className="mx-auto max-w-3xl px-0 md:px-4 pb-16">
                 <div className="mb-6 flex items-center justify-between px-5 font-mono text-xs text-muted-foreground">
