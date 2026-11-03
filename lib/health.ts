@@ -65,7 +65,7 @@ export async function runHealthChecks(baseUrl: string, fetchImpl: typeof fetch =
       status = res.status;
       const body = await res.text();
       if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
-      if (!body.includes("東山文薈")) throw new Error("頁面內容不完整");
+      if (!body.includes("東山文薈")) throw new Error(`頁面內容不完整（${describe(res.url || path, body)}）`);
     });
     return { status, ...r, error: r.error ? friendlyError(r.error) : undefined };
   };
@@ -79,6 +79,13 @@ export async function runHealthChecks(baseUrl: string, fetchImpl: typeof fetch =
   }
 
   return { ok: results.every((r) => r.ok), checkedAt: new Date().toISOString(), results };
+}
+
+/** 內容不對時，記下實際拿到的網址和頁面標題，方便判斷原因 */
+function describe(url: string, body: string): string {
+  const title = body.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim();
+  const text = (title || body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).slice(0, 60);
+  return `${url}：${text || "空白"}`;
 }
 
 /** 把常見的錯誤訊息換成看得懂的說法 */

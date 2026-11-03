@@ -12,7 +12,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const siteUrl = process.env.NEXTAUTH_URL || new URL(request.url).origin;
+  // 一律檢查正式網站（可用環境變數 SITE_URL 改成其他網址）
+  const siteUrl = process.env.SITE_URL || "https://ilovedshs.vercel.app";
   const report = await runHealthChecks(siteUrl);
 
   let previous: { ok: boolean } | null = null;
