@@ -18,7 +18,11 @@ const PAGES: [string, string][] = [
   ["作者", "/authors"],
 ];
 
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 20_000; // 單次請求最多等 20 秒
+const RETRY_DELAY_MS = 3_000; // 失敗後隔 3 秒再試一次
+const BUDGET_MS = 50_000; // 整體檢查時間上限（排程函式最多跑 60 秒）
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function timed<T>(fn: () => Promise<T>): Promise<{ value?: T; ms: number; error?: string }> {
   const t0 = Date.now();
@@ -44,28 +48,44 @@ export async function runHealthChecks(baseUrl: string, fetchImpl: typeof fetch =
   results.push({ name: "資料庫", ok: !db.error, ms: db.ms, error: db.error });
 
   // 2. 各頁面：要回傳 200，而且內容裡有站名（避免空白頁或錯誤頁被當成正常）
+  //    一頁一頁依序檢查（同時打太多請求會讓伺服器冷啟動排隊而逾時，造成誤報）；
+  //    失敗的頁面隔幾秒再試一次，兩次都失敗才算異常。
   const pages = [...PAGES];
   if (latestWork) pages.push(["最新作品頁", latestWork]);
-  const checks = await Promise.all(
-    pages.map(async ([name, path]) => {
-      let status: number | undefined;
-      const r = await timed(async () => {
-        const res = await fetchImpl(new URL(path, baseUrl).toString(), {
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-          headers: { "user-agent": "wenhui-health-check" },
-          cache: "no-store",
-        });
-        status = res.status;
-        const body = await res.text();
-        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
-        if (!body.includes("東山文薈")) throw new Error("頁面內容不完整");
+  const started = Date.now();
+  const checkOnce = async (path: string) => {
+    let status: number | undefined;
+    const left = BUDGET_MS - (Date.now() - started);
+    const r = await timed(async () => {
+      const res = await fetchImpl(new URL(path, baseUrl).toString(), {
+        signal: AbortSignal.timeout(Math.max(3_000, Math.min(TIMEOUT_MS, left))),
+        headers: { "user-agent": "wenhui-health-check", accept: "text/html" },
+        cache: "no-store",
       });
-      return { name: `${name}（${path}）`, ok: !r.error, status, ms: r.ms, error: r.error } as CheckResult;
-    })
-  );
-  results.push(...checks);
+      status = res.status;
+      const body = await res.text();
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+      if (!body.includes("東山文薈")) throw new Error("頁面內容不完整");
+    });
+    return { status, ...r, error: r.error ? friendlyError(r.error) : undefined };
+  };
+  for (const [name, path] of pages) {
+    let r = await checkOnce(path);
+    if (r.error && Date.now() - started < BUDGET_MS - RETRY_DELAY_MS - 3_000) {
+      await sleep(RETRY_DELAY_MS);
+      r = await checkOnce(path);
+    }
+    results.push({ name: `${name}（${path}）`, ok: !r.error, status: r.status, ms: r.ms, error: r.error });
+  }
 
   return { ok: results.every((r) => r.ok), checkedAt: new Date().toISOString(), results };
+}
+
+/** 把常見的錯誤訊息換成看得懂的說法 */
+function friendlyError(message: string): string {
+  if (/abort|timeout|timed out/i.test(message)) return "逾時";
+  if (/fetch failed|ECONN|ENOTFOUND|EAI_AGAIN|socket/i.test(message)) return `連線失敗（${message}）`;
+  return message;
 }
 
 /** 存下這次結果，回傳「上一次」的結果（用來判斷是不是剛恢復） */
@@ -87,7 +107,7 @@ export async function getLatestHealthCheck(): Promise<{ ok: boolean; checkedAt: 
   return {
     ok: r.ok as boolean,
     checkedAt: new Date(r.checked_at).toISOString(),
-    failed: detail.filter((d) => !d.ok).map((d) => d.name),
+    failed: detail.filter((d) => !d.ok).map((d) => (d.error ? `${d.name} ${d.error}` : d.name)),
   };
 }
 
