@@ -14,18 +14,29 @@ export async function GET(request: Request) {
 
   // 一律檢查正式網站（可用環境變數 SITE_URL 改成其他網址）
   const siteUrl = process.env.SITE_URL || "https://ilovedshs.vercel.app";
+  const params = new URL(request.url).searchParams;
   const report = await runHealthChecks(siteUrl);
 
+  // 網址加上 ?simulate=1 時，假裝有一頁壞掉，用來看異常通知信長怎樣；
+  // 模擬的結果不會存進紀錄，後台狀態不受影響
+  const isSimulate = params.get("simulate") === "1";
+  if (isSimulate) {
+    report.results.push({ name: "模擬異常（/simulate）", ok: false, ms: 0, error: "這是模擬的錯誤，網站實際上正常" });
+    report.ok = false;
+  }
+
   let previous: { ok: boolean } | null = null;
-  try {
-    previous = await recordHealthCheck(report);
-  } catch (error) {
-    console.error("健康檢查結果寫入失敗:", error);
+  if (!isSimulate) {
+    try {
+      previous = await recordHealthCheck(report);
+    } catch (error) {
+      console.error("健康檢查結果寫入失敗:", error);
+    }
   }
 
   // 出問題就通知；從「有問題」變回「正常」也通知一次
   // 網址加上 ?test=1 時，不管結果如何都寄一封（用來測試寄信設定）
-  const isTest = new URL(request.url).searchParams.get("test") === "1";
+  const isTest = params.get("test") === "1";
   let notified = false;
   try {
     if (!report.ok) notified = await sendHealthAlert(report, "down", siteUrl);
