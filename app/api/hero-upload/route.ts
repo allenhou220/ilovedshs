@@ -10,6 +10,16 @@ export const dynamic = "force-dynamic";
 const ALLOWED_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_BYTES = 50 * 1024 * 1024;
 
+// 上傳前的檢查：回傳能不能上傳、不能的話原因是什麼（給後台顯示，方便找問題）
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ ok: false, reason: "未登入，請重新登入後台" }, { status: 401 });
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({ ok: false, reason: "伺服器缺少 BLOB_READ_WRITE_TOKEN（Vercel Blob 儲存空間沒有連到這個環境）" });
+  }
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as HandleUploadBody;
 
@@ -34,6 +44,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(json);
   } catch (error) {
+    console.error("封面影片上傳許可失敗:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "上傳失敗" }, { status: 400 });
   }
 }

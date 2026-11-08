@@ -120,6 +120,14 @@ export default function HomepageForm({ initial }: { initial: Values }) {
         if (newImage && VIDEO_TYPES.includes(newImage.file.type)) {
           // 影片檔案較大：由瀏覽器直接傳到 Blob，再把網址交給伺服器儲存
           const ext = newImage.file.name.split(".").pop()?.toLowerCase() || "mp4";
+          // 先問伺服器能不能上傳，不能的話直接顯示原因
+          const check = await fetch("/api/hero-upload", { cache: "no-store" })
+            .then((r) => r.json() as Promise<{ ok: boolean; reason?: string }>)
+            .catch(() => ({ ok: false, reason: "連不上伺服器" }));
+          if (!check.ok) {
+            setMessage({ type: "error", text: `影片無法上傳：${check.reason || "原因不明"}` });
+            return;
+          }
           setMessage({ type: "ok", text: "影片上傳中⋯" });
           const blob = await upload(`hero/cover.${ext}`, newImage.file, {
             access: "public",
