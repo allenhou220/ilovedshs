@@ -7,7 +7,8 @@ export function HeroMedia({ src, alt, className = "absolute inset-0 h-full w-ful
     return (
       <video
         src={src}
-        className={className}
+        // 影片放大 6%，裁掉影片本身邊緣帶的黑邊（外層容器會 overflow-hidden）
+        className={`${className} scale-[1.06]`}
         autoPlay
         muted
         loop
