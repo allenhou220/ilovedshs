@@ -18,7 +18,8 @@ type Values = {
 };
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
-const MAX_IMAGE_MB = 10;
+// 圖片會跟表單一起送到伺服器，Vercel 限制每次請求 4.5MB，所以壓縮後要小於 4MB
+const MAX_IMAGE_MB = 4;
 const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_VIDEO_MB = 50;
 const SUBTITLE_MAX = 200;
@@ -80,12 +81,16 @@ export default function HomepageForm({ initial }: { initial: Values }) {
       return setMessage({ type: "error", text: "檔案格式不支援。" });
     }
     // 圖片先在瀏覽器裡壓縮（首頁大圖放寬到 2400 寬），再檢查大小
-    if (!isVideo) file = await compressImageFile(file, { maxWidth: 2400 });
+    if (!isVideo) {
+      file = await compressImageFile(file, { maxWidth: 2400 });
+      // 還是太大（例如超高解析度照片）就再縮小一點、品質降一點
+      if (file.size > MAX_IMAGE_MB * 1024 * 1024) file = await compressImageFile(file, { maxWidth: 1920, quality: 0.75, skipBelow: 0 });
+    }
     const limitMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
     if (file.size > limitMb * 1024 * 1024) {
       e.target.value = "";
       setNewImage(null);
-      return setMessage({ type: "error", text: `${isVideo ? "影片" : "圖片"}不可超過 ${limitMb}MB。` });
+      return setMessage({ type: "error", text: isVideo ? `影片不可超過 ${limitMb}MB。` : `圖片壓縮後仍超過 ${limitMb}MB，請換一張較小的圖片。` });
     }
     setNewImage({ file, url: URL.createObjectURL(file) });
   }
@@ -138,7 +143,8 @@ export default function HomepageForm({ initial }: { initial: Values }) {
         router.refresh();
       } catch (error) {
         console.error("儲存首頁設定失敗:", error);
-        setMessage({ type: "error", text: "儲存失敗，請稍後再試。" });
+        const detail = error instanceof Error ? error.message : String(error);
+        setMessage({ type: "error", text: `儲存失敗：${detail}` });
       }
     });
   }
@@ -207,7 +213,7 @@ export default function HomepageForm({ initial }: { initial: Values }) {
           />
         </Field>
 
-        <Field label="封面圖片" htmlFor="image" hint={`圖片 ${MAX_IMAGE_MB}MB、影片 ${MAX_VIDEO_MB}MB 以內，建議橫式 4:3`}>
+        <Field label="封面圖片" htmlFor="image" hint={`圖片會自動壓縮；影片 ${MAX_VIDEO_MB}MB 以內。建議橫式 4:3`}>
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex min-h-11 cursor-pointer items-center border border-foreground px-5 font-serif text-sm transition-colors hover:bg-foreground hover:text-background">
               選擇圖片或影片
